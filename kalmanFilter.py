@@ -170,37 +170,25 @@ class KalmanFilter:
 
         dcut = 0.995  # Defined threshold to consider positives
 
+
         iplan3 = 3  # plane n. 4
         ncel3 = int(self.mdet[iplan3, 0])  # nr. of hits plane 4
         for i3 in range(ncel3):
-
-            icel = 1 + i3 * NDAC
-            kx3 = self.mdet[iplan3, icel]
-            ky3 = self.mdet[iplan3, icel + 1]
-            kt3 = self.mdet[iplan3, icel + 2]
-            x0 = kx3 * WCX - (WCX / 2)
-            y0 = ky3 * WCX - (WCY / 2)
-            t0 = kt3
+            kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
             # state vector
             vr = np.asarray([x0, 0, y0, 0, t0, SC])  # we assume a normal svector
 
-            iplan2 = 2  # iplan - 1       # plane n. 3
+            iplan2 = 2  # plane n. 3
             ncel2 = int(self.mdet[iplan2, 0])  # nr. of hits plane 3
-            #
+
             for i2 in range(ncel2):
-                icel = 1 + i2 * NDAC
-                kx2 = self.mdet[iplan2, icel]
-                ky2 = self.mdet[iplan2, icel + 1]
-                kt2 = self.mdet[iplan2, icel + 2]
-                x0 = kx2 * WCX - (WCX / 2)
-                y0 = ky2 * WCY - (WCY / 2)
-                t0 = kt2
+                kx2, ky2, kt2, x0, y0, t0 = self.set_params(i2, iplan2)
                 vdat = np.asarray([x0, y0, t0])
-                #
+
                 vrp = vr  # save previous values
                 mErrp = self.mErr
-                #
-                vr2, mErr2 = self.fitkalman(VZI, vr, self.mErr, vdat, iplan2)  # <â€” ajuste
+
+                vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan2)
 
                 phits = 2
                 vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, 0, 0, 0, vr2])
@@ -208,25 +196,16 @@ class KalmanFilter:
                 vstat = np.hstack([vstat, cutf])
 
                 if cutf > dcut:
-                    iplan1 = 1  # iplan - 1
+                    iplan1 = 1  # plane 2
                     ncel1 = int(self.mdet[iplan1, 0])
 
                     for i1 in range(ncel1):
-                        icel = 1 + 3 * i1
-
-                        kx1 = self.mdet[iplan1, icel]
-                        ky1 = self.mdet[iplan1, icel + 1]
-                        kt1 = self.mdet[iplan1, icel + 2]
-
-                        x0 = kx1 * WCX - (WCX / 2)
-                        y0 = ky1 * WCY - (WCY / 2)
-                        t0 = kt1
-
+                        kx1, ky1, kt1, x0, y0, t0 = self.set_params(i1, iplan1)
                         vdat = np.asarray([x0, y0, t0])
                         vrp2 = vr2
                         mErrp2 = mErr2
 
-                        vr3, mErr3 = self.fitkalman(VZI, vr2, mErr2, vdat, iplan1)
+                        vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan1)
 
                         phits = 3
                         vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, 0, 0, 0, vr3])
@@ -234,25 +213,16 @@ class KalmanFilter:
                         vstat = np.hstack([vstat, cutf])
 
                         if cutf > dcut:
-                            iplan0 = 0  # iplan - 1
+                            iplan0 = 0  # plane 1
                             ncel0 = int(self.mdet[iplan0, 0])
 
                             for i0 in range(ncel0):
-                                icel = 1 + 3 * i0
-
-                                kx0 = self.mdet[iplan0, icel]
-                                ky0 = self.mdet[iplan0, icel + 1]
-                                kt0 = self.mdet[iplan0, icel + 2]
-
-                                x0 = kx0 * WCX - (WCX / 2)
-                                y0 = ky0 * WCY - (WCY / 2)
-                                t0 = kt0
-
+                                kx0, ky0, kt0, x0, y0, t0 = self.set_params(i0, iplan0)
                                 vdat = np.asarray([x0, y0, t0])
                                 vrp3 = vr3
                                 mErrp3 = mErr3
 
-                                vr4, mErr4 = self.fitkalman(VZI, vr3, mErr3, vdat, iplan0)
+                                vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan0)
 
                                 phits = 4
                                 vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, kx0, ky0, kt0, vr4])
@@ -260,7 +230,7 @@ class KalmanFilter:
                                 vstat = np.hstack([vstat, cutf])
 
                                 if cutf > dcut:
-                                    # nr of planes hitted,cells, saeta, fit quality
+                                    # nr of planes hit, cells, saeta, fit quality
                                     mstat = np.vstack([mstat, vstat])
                                 else:
                                     continue
@@ -268,38 +238,36 @@ class KalmanFilter:
                             continue
                 else:
                     continue
-
         return mstat[~np.all(mstat == 0, axis=1)]
 
+    def set_params(self, iN: int, iplanN: int):
+        icel = 1 + iN  * NDAC
+        kxN, kyN, ktN = self.mdet[iplanN, icel:icel + NDAC]
+        x0 = kxN * WCX - (WCX / 2)
+        y0 = kyN * WCX - (WCY / 2)
+        t0 = ktN
+        return kxN, kyN, ktN, x0, y0, t0
+
     def matrix_det(self):  # mdat -> mdet
-        # Check if mdat is all zero
-        all_zeros = np.all(self.mdat == 0)
-        if all_zeros:
-            print('No tracks available')
-            sys.exit()
-        else:
-            ndac = 3
-            ntrk, nplan = self.mdat.shape  # number of tracks, number of plans
-            nplan = int(nplan / ndac)
-            ncol = 1 + ndac * ntrk
-            mdet = np.zeros([nplan, ncol])
-            idat = 0
-            for ip in range(nplan):
-                idet = 0
-                count = []
-                for it in range(ntrk):
-                    ideti = idet + 1
-                    idetf = ideti + ndac
-                    idatf = idat + ndac
-                    mdet[ip, ideti:idetf] = self.mdat[it, idat:idatf]
-                    a = np.all((mdet[ip, ideti:idetf] == 0))  # checks if all are zero
-                    if a:
-                        count.append(0)
-                    else:
-                        count.append(1)
-                    mdet[ip, 0] = sum(count)
-                    idet = idet + ndac
-                idat = idat + ndac
+        if np.all(self.mdat == 0):  # Check if mdat is all zero
+            raise Exception('No tracks available! Matrix mdat is all zero.')
+        ndac = 3
+        ntrk, nplan = self.mdat.shape  # Number of tracks, number of plans
+        nplan = int(nplan / ndac)
+        ncol = 1 + ndac * ntrk  # One more column to store number of tracks
+        mdet = np.zeros([nplan, ncol])  # TODO: Preguntar a Sara por qué estas vueltas.
+        idat = 0
+        for ip in range(nplan):
+            idet = 0
+            for it in range(ntrk):
+                ideti = idet + 1
+                idetf = ideti + ndac
+                idatf = idat + ndac
+                mdet[ip, ideti:idetf] = self.mdat[it, idat:idatf]
+                if not np.all((mdet[ip, ideti:idetf] == 0)):  # checks if all are zero
+                    mdet[ip, 0] += 1
+                idet += ndac
+            idat += ndac
         return mdet
 
     def fprop(self, vr, mErr, zi, zf):  # Transport function
@@ -379,10 +347,10 @@ class KalmanFilter:
 
         return vr, mErr
 
-    def fitkalman(self, vzi, vr, mErr, vdat, iplan):
+    def fitkalman(self, vr, mErr, vdat, iplan):
         for ip in range(iplan + 1, iplan, -1):  # loop on planes
-            zi = vzi[ip]
-            zf = vzi[ip - 1]
+            zi = VZI[ip]
+            zf = VZI[ip - 1]
 
             # Propagation step
             vrp = vr
@@ -409,27 +377,19 @@ class KalmanFilter:
 
     def fcut(self, vstat, vr, mErr, vdat):  # Function that returns quality factor
         bm = 0.2  # beta  min
-        c = 0.3  # [mm/ps]
-        ndac = 3
-        cmn = bm * c
+        cmn = bm * C
         smx = 1 / cmn
-        ndat = vstat[0] * ndac
-        npar = 6
-        ndf = ndat - npar
-        #
-        xd = vdat[0]
-        yd = vdat[1]
-        td = vdat[2]
-        #
-        x0 = vr[0]
-        y0 = vr[2]
-        t0 = vr[4]
-        s0 = vr[5]
-        #
+        ndat = vstat[0] * NDAC
+        ndf = ndat - NPAR
+
+        xd, yd, td = vdat
+
+        x0, _, y0, _, t0, s0 = vr
+
         sigx = np.sqrt(mErr[0, 0])
         sigy = np.sqrt(mErr[2, 2])
         sigt = np.sqrt(mErr[4, 4])
-        if (s0 < 0) or (s0 > smx):
+        if s0 < 0 or s0 > smx:
             cutf = 0
         else:
             if ndf != 0:
