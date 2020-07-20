@@ -10,35 +10,6 @@ Miguel Cruces
 
 """
 
-#  REVIEW
-
-#  GI filter for a pads detector
-#  TRAGALDABAS Version
-# *****************************
-#   JA Garzon. labCAF / USC
-#   - Abril 2020
-#   2020 Abril. Sara Costa
-# ******************************************************************** GENE
-# It generates ntrack tracks from a charged particle and propagates them
-# in the Z axis direction through nplan planes
-##################################################################### DIGIT
-# It simulates the digital answer in nplan planes of detectors, in which
-# - the coordinates (nx,ny) of the crossed pad are determined
-# - the flight time is determined integrating tint
-# *******************************************************************GI
-# - It reconstructs the track through the GI Filter
-# *************************************************************** Comments
-# Some coding criteria:
-# - The variable names, follow, in general, some mnemonic rule
-# - Names of vectors start with v
-# - Names of matrixes start with m
-# ********************************************************************
-# Typical units:
-# Mass, momentum and energy: MeV
-# Distances in mm
-# Time of ps
-# ********************************************************************
-
 import numpy as np
 from numpy.linalg import inv
 from scipy import stats
@@ -55,57 +26,6 @@ class GenerateInputData:
     """
 
     def __init__(self):
-
-        # # Constants
-        # c = 0.3  # [mm/ps]
-        # self.sc = 1 / c  # slowness associated with light speed
-        # mele = 0.511
-        # mmu = 105.6
-        # mpro = 938.3
-        #
-        # # Data
-        # mass = mmu
-        # kene = 1000  # MeV, kinetic energy
-        # ene = mass + kene
-        # gamma = ene / mass
-        # beta = np.sqrt(1 - 1 / (gamma * gamma))
-        # betgam = beta * gamma
-        # vini = beta * c  # initial velocity
-        # sini = 1 / vini
-        # pmom = betgam * mass
-        #
-        # self.ntrack = 5  # num. of tracks to be generated
-        # self.nt = 0  # num. of tracks in the detector
-        # self.thmax = 10  # max theta in degrees
-        # self.npar = 6  # num. of parameters to be fitted
-        # self.ndac = 3  # num data per cell: x, y, t
-        #
-        # # Initial Values
-        # self.sini = self.sc
-        # self.tini = 1000
-        #
-        # # DETECTOR DESIGN
-        # # Rectangular detector with ncx*ncy rectangular electrodes
-        # # It is assumed that the origin is in one edge of the detector
-        # self.nplan = 4  # num. of planes
-        # ncx = 12  # num. of cells in x
-        # ncy = 10  # num. of cells in y
-        # self.vzi = [0, 600, 900, 1800]  # position of the planes in mm
-        # self.lenx = 1500  # length in x
-        # self.leny = 1200  # length in y
-        # self.wcx = self.lenx / ncx  # cell width in x
-        # self.wcy = self.leny / ncy  # cell width in y
-        # wdt = 100
-        #
-        # # Uncertainties
-        # self.sigx = (1 / np.sqrt(12)) * self.wcx
-        # self.sigy = (1 / np.sqrt(12)) * self.wcy
-        # self.sigt = 300  # [ps]
-        # wx = 1 / self.sigx ** 2
-        # wy = 1 / self.sigy ** 2
-        # wt = 1 / self.sigt ** 2
-        # self.dt = 100  # digitizer precission
-
         self.nt = 0
 
         # Data vectors
