@@ -39,7 +39,7 @@ Miguel Cruces
 # Time of ps
 # ********************************************************************
 
-# import numpy as np
+import numpy as np
 from numpy.linalg import inv
 from scipy import stats
 import sys
