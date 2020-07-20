@@ -170,7 +170,6 @@ class KalmanFilter:
 
         dcut = 0.995  # Defined threshold to consider positives
 
-
         iplan3 = 3  # plane n. 4
         ncel3 = int(self.mdet[iplan3, 0])  # nr. of hits plane 4
         for i3 in range(ncel3):
@@ -225,7 +224,8 @@ class KalmanFilter:
                                 vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan0)
 
                                 phits = 4
-                                vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, kx0, ky0, kt0, vr4])
+                                vstat = np.hstack(
+                                    [phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, kx0, ky0, kt0, vr4])
                                 cutf = self.fcut(vstat, vr4, mErr4, vdat)
                                 vstat = np.hstack([vstat, cutf])
 
@@ -241,7 +241,7 @@ class KalmanFilter:
         return mstat[~np.all(mstat == 0, axis=1)]
 
     def set_params(self, iN: int, iplanN: int):
-        icel = 1 + iN  * NDAC
+        icel = 1 + iN * NDAC
         kxN, kyN, ktN = self.mdet[iplanN, icel:icel + NDAC]
         x0 = kxN * WCX - (WCX / 2)
         y0 = kyN * WCX - (WCY / 2)
@@ -413,6 +413,3 @@ if __name__ == "__main__":
     mstat1 = KF.mstat
     mVd1 = KF.mVd
     mErr1 = KF.mErr
-
-
-    # GI.mdat[0][0] = 5
