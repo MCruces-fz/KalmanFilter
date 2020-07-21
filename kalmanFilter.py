@@ -17,12 +17,12 @@ import sys
 from const import *
 
 np.set_printoptions(formatter={'float': '{:.3f}'.format})
-np.random.seed(42)
+np.random.seed(17)
 
 
 class GenerateInputData:
     """
-    It generates the input data
+    It generates the input data randomly.
     """
 
     def __init__(self):
@@ -42,11 +42,16 @@ class GenerateInputData:
 
         self.tracks_generation()
         self.digitization()
+        # self.mdat[0, 3:6] = [0, 0, 0]
+        self.mdet = self.matrix_det()
 
     def tracks_generation(self):
+        """
+        It generates the parameters to construct the tracks as lines.
+        """
         ctmx = np.cos(np.deg2rad(THMAX))  # theta_max cosine
-        lenz = VZI[NPLAN - 1] - VZI[0]  # Toma la posicion del plano nplan con respecto al inicial
-        it = 0  # numero de tracks inicialmente
+        lenz = VZI[NPLAN - 1] - VZI[0]  # Distance from bottom to top planes
+        it = 0  # Number of tracks actually
 
         for i in range(NTRACK):
             # Uniform distribution in cos(theta) and phi
@@ -64,12 +69,6 @@ class GenerateInputData:
             cz = np.cos(tth)
             xp = cx / cz  # projected slope in the X-Z plane
             yp = cy / cz  # projected slope in the Y-Z plane
-
-            # Patch to simulate a specific track
-            #    x0 = 1000
-            #    xp = 0.1
-            #    y0 = 600
-            #    yp = -0.1
 
             # Coordinate where would the particle come out
             xzend = x0 + xp * lenz
@@ -90,15 +89,14 @@ class GenerateInputData:
         self.mtgen = self.mtgen[~(self.mtgen == 0).all(1)]
 
     def digitization(self):
-
+        """
+        It converts the parameters inside mtgen to discrete numerical
+        values, which are the cell indices (mdat) and cell central
+        positions (mdpt).
+        """
         nx = 0
-
         for it in range(self.nt):
-            x0 = self.mtgen[it, 0]
-            xp = self.mtgen[it, 1]
-            y0 = self.mtgen[it, 2]
-            yp = self.mtgen[it, 3]
-            # dz = np.cos(th)
+            x0, xp, y0, yp = self.mtgen[it, 0:4]  # dz = np.cos(th)
 
             it = 0
             for ip in range(NPLAN):
@@ -112,141 +110,18 @@ class GenerateInputData:
                 ky = np.int((yi + (WCY / 2)) / WCY)
                 kt = np.int((ti + (DT / 2)) / DT) * DT
                 # Cell position (distance)
-                xic = kx * WCX + (WCX / 2)
-                yic = ky * WCX + (WCX / 2)
+                # xic = kx * WCX + (WCX / 2)
+                # yic = ky * WCX + (WCX / 2)
                 vpnt = np.asarray([xi, yi, ti])  # (X,Y,T) impact point
-                vxyt = np.asarray([kx, ky, kt])
-                self.vdpt[it:it + 3] = vpnt[0:3]
-                self.vdat[it:it + 3] = vxyt[0:3]
+                vxyt = np.asarray([kx, ky, kt])  # impact index
+                self.vdpt[it:it + NDAC] = vpnt[0:NDAC]
+                self.vdat[it:it + NDAC] = vxyt[0:NDAC]
                 it += 3
             self.mdpt = np.vstack((self.mdpt, self.vdpt))
             self.mdat = np.vstack((self.mdat, self.vdat))
             nx += 1
         self.mdpt = np.delete(self.mdpt, 0, axis=0)
         self.mdat = np.delete(self.mdat, 0, axis=0)
-
-
-def diag_matrix(dim: int, diag: list):
-    """
-    Create squared matrix of dimXdim dimension with diag in the diagonal.
-    :param dim: Quantity of rows/columns.
-    :param diag: String of length dim with the diagonal values.
-    :return: Squared matrix of dimXdim dimension with diag in the diagonal.
-    """
-    arr = np.zeros([dim, dim])
-    row, col = np.diag_indices(arr.shape[0])
-    arr[row, col] = np.array(diag)
-    return arr
-
-
-class KalmanFilter:
-    def __init__(self, m_dat):
-
-        self.mdat = m_dat
-
-        self.mdet = self.matrix_det()
-        mdet_list = self.mdet.tolist()
-
-        # Error matrix for vr
-        self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])
-
-        self.mVd = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])  # Matrix V_d -> measurement uncertainties
-
-        self.mstat = self.main()
-
-    def main(self):
-        ntrmx = 1  # Max number of tracks
-        for ip in range(NPLAN):
-            ''' Combinatoria de los positivos en cada plano'''
-            nceli = int(self.mdet[ip, 0])
-            ntrmx *= nceli
-
-        nvar = NPAR + 2  # npar + 0 column + 1 for quality
-        ncol = NPLAN * NDAC + nvar
-
-        mstat = np.zeros([1, ncol])
-
-        ncomb = ntrmx  # Number of possible combinations == Maximum number of possibles tracks
-
-        dcut = 0.995  # Defined threshold to consider positives
-
-        iplan3 = 3  # plane n. 4
-        ncel3 = int(self.mdet[iplan3, 0])  # nr. of hits plane 4
-        for i3 in range(ncel3):
-            kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
-            # state vector
-            vr = np.asarray([x0, 0, y0, 0, t0, SC])  # we assume a normal svector
-
-            iplan2 = 2  # plane n. 3
-            ncel2 = int(self.mdet[iplan2, 0])  # nr. of hits plane 3
-
-            for i2 in range(ncel2):
-                kx2, ky2, kt2, x0, y0, t0 = self.set_params(i2, iplan2)
-                vdat = np.asarray([x0, y0, t0])
-
-                vrp = vr  # save previous values
-                mErrp = self.mErr
-
-                vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan2)
-
-                phits = 2
-                vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, 0, 0, 0, vr2])
-                cutf = self.fcut(vstat, vr2, mErr2, vdat)
-                vstat = np.hstack([vstat, cutf])
-
-                if cutf > dcut:
-                    iplan1 = 1  # plane 2
-                    ncel1 = int(self.mdet[iplan1, 0])
-
-                    for i1 in range(ncel1):
-                        kx1, ky1, kt1, x0, y0, t0 = self.set_params(i1, iplan1)
-                        vdat = np.asarray([x0, y0, t0])
-                        vrp2 = vr2
-                        mErrp2 = mErr2
-
-                        vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan1)
-
-                        phits = 3
-                        vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, 0, 0, 0, vr3])
-                        cutf = self.fcut(vstat, vr3, mErr3, vdat)
-                        vstat = np.hstack([vstat, cutf])
-
-                        if cutf > dcut:
-                            iplan0 = 0  # plane 1
-                            ncel0 = int(self.mdet[iplan0, 0])
-
-                            for i0 in range(ncel0):
-                                kx0, ky0, kt0, x0, y0, t0 = self.set_params(i0, iplan0)
-                                vdat = np.asarray([x0, y0, t0])
-                                vrp3 = vr3
-                                mErrp3 = mErr3
-
-                                vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan0)
-
-                                phits = 4
-                                vstat = np.hstack(
-                                    [phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, kx0, ky0, kt0, vr4])
-                                cutf = self.fcut(vstat, vr4, mErr4, vdat)
-                                vstat = np.hstack([vstat, cutf])
-
-                                if cutf > dcut:
-                                    # nr of planes hit, cells, saeta, fit quality
-                                    mstat = np.vstack([mstat, vstat])
-                                else:
-                                    continue
-                        else:
-                            continue
-                else:
-                    continue
-        return mstat[~np.all(mstat == 0, axis=1)]
-
-    def set_params(self, iN: int, iplanN: int):
-        icel = 1 + iN * NDAC
-        kxN, kyN, ktN = self.mdet[iplanN, icel:icel + NDAC]
-        x0 = kxN * WCX - (WCX / 2)
-        y0 = kyN * WCX - (WCY / 2)
-        t0 = ktN
-        return kxN, kyN, ktN, x0, y0, t0
 
     def matrix_det(self):  # mdat -> mdet
         if np.all(self.mdat == 0):  # Check if mdat is all zero
@@ -269,6 +144,131 @@ class KalmanFilter:
                 idet += ndac
             idat += ndac
         return mdet
+
+
+def diag_matrix(dim: int, diag: list):
+    """
+    Create squared matrix of dimXdim dimension with diag in the diagonal.
+    :param dim: Quantity of rows/columns.
+    :param diag: String of length dim with the diagonal values.
+    :return: Squared matrix of dimXdim dimension with diag in the diagonal.
+    """
+    arr = np.zeros([dim, dim])
+    row, col = np.diag_indices(arr.shape[0])
+    arr[row, col] = np.array(diag)
+    return arr
+
+
+class KalmanFilter:
+    def __init__(self, m_det):
+
+        self.mdet = m_det
+        mdet_list = self.mdet.tolist()
+
+        # Error matrix for vr
+        self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])
+
+        self.mVd = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])  # Matrix V_d -> measurement uncertainties
+
+        self.mstat = self.main()
+
+    def main(self):
+        ntrmx = 1  # Max number of tracks
+        for ip in range(NPLAN):
+            nceli = int(self.mdet[ip, 0])
+            ntrmx *= nceli  # Total number of collisions in all planes
+
+        nvar = NPAR + 2  # npar + 0 column + 1 for quality
+        ncol = NPLAN * NDAC + nvar
+
+        mstat = np.zeros([0, ncol])
+
+        ncomb = ntrmx  # Number of possible combinations == Maximum number of possibles tracks
+
+        dcut = 0.995  # Defined threshold to consider positives
+
+        iplan3 = 3  # plane n. 4
+        ncel3 = int(self.mdet[iplan3, 0])  # nr. of hits plane 4
+        for i3 in range(ncel3):
+            kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
+
+            vr = np.asarray([x0, 0, y0, 0, t0, SC])  # we assume a normal state vector
+
+            iplan2 = 2  # plane n. 3
+            ncel2 = int(self.mdet[iplan2, 0])  # nr. of hits plane 3
+
+            for i2 in range(ncel2):
+                kx2, ky2, kt2, x0, y0, t0 = self.set_params(i2, iplan2)
+
+                vdat = np.asarray([x0, y0, t0])
+
+                vrp = vr  # save previous values
+                mErrp = self.mErr
+
+                vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan2)
+
+                phits = 2
+                vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, 0, 0, 0, vr2])
+                cutf = self.fcut(vstat, vr2, mErr2, vdat)
+                vstat = np.hstack([vstat, cutf])
+
+                if cutf > dcut:
+                    iplan1 = 1  # plane 2
+                    ncel1 = int(self.mdet[iplan1, 0])
+
+                    for i1 in range(ncel1):
+                        kx1, ky1, kt1, x0, y0, t0 = self.set_params(i1, iplan1)
+
+                        vdat = np.asarray([x0, y0, t0])
+
+                        vrp2 = vr2
+                        mErrp2 = mErr2
+
+                        vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan1)
+
+                        phits = 3
+                        vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, 0, 0, 0, vr3])
+                        cutf = self.fcut(vstat, vr3, mErr3, vdat)
+                        vstat = np.hstack([vstat, cutf])
+
+                        if cutf > dcut:
+                            iplan0 = 0  # plane 1
+                            ncel0 = int(self.mdet[iplan0, 0])
+
+                            for i0 in range(ncel0):
+                                kx0, ky0, kt0, x0, y0, t0 = self.set_params(i0, iplan0)
+
+                                vdat = np.asarray([x0, y0, t0])
+
+                                vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan0)
+
+                                vrp3 = vr3
+                                mErrp3 = mErr3
+
+                                phits = 4
+                                vstat = np.hstack(
+                                    [phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, kx0, ky0, kt0, vr4])
+                                cutf = self.fcut(vstat, vr4, mErr4, vdat)
+                                vstat = np.hstack([vstat, cutf])
+
+                                if cutf > dcut:
+                                    # nr of planes hit, cells, saeta, fit quality
+                                    mstat = np.vstack([mstat, vstat])
+                                else:
+                                    continue
+                        else:
+                            continue
+                else:
+                    continue
+        return mstat  # mstat[~np.all(mstat == 0, axis=1)]
+
+    def set_params(self, iN: int, iplanN: int):
+        icel = 1 + iN * NDAC
+        kxN, kyN, ktN = self.mdet[iplanN, icel:icel + NDAC]
+        x0 = kxN * WCX - (WCX / 2)
+        y0 = kyN * WCX - (WCY / 2)
+        t0 = ktN
+        return kxN, kyN, ktN, x0, y0, t0
 
     def fprop(self, vr, mErr, zi, zf):  # Transport function
         dz = zf - zi
@@ -389,6 +389,7 @@ class KalmanFilter:
         sigx = np.sqrt(mErr[0, 0])
         sigy = np.sqrt(mErr[2, 2])
         sigt = np.sqrt(mErr[4, 4])
+
         if s0 < 0 or s0 > smx:
             cutf = 0
         else:
@@ -406,10 +407,10 @@ if __name__ == "__main__":
 
     mdpt1 = GI.mdpt
     mdat1 = GI.mdat
+    mdet1 = GI.mdet
 
-    KF = KalmanFilter(mdat1)
+    KF = KalmanFilter(mdet1)
 
-    mdet1 = KF.mdet
     mstat1 = KF.mstat
     mVd1 = KF.mVd
     mErr1 = KF.mErr

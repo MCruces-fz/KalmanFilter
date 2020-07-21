@@ -3,6 +3,7 @@ import numpy as np
 # =================== #
 # ==== Constants ==== #
 # =================== #
+
 C = 0.3  # [MM/PS]
 SC = 1 / C  # SLOWNESS ASSOCIATED WITH LIGHT SPEED
 MELE = 0.511  # (MeV/c**2) ELECTRON
@@ -12,6 +13,7 @@ MPRO = 938.3  # (MeV/c**2) PROTON
 # ============================= #
 # ==== Data to be Modified ==== #
 # ============================= #
+
 MASS = MMU
 KENE = 1000  # (MeV) KINETIC ENERGY
 ENE = MASS + KENE  # (MeV) TOTAL ENERGY
@@ -27,18 +29,20 @@ THMAX = 10  # MAX THETA IN DEGREES
 NPAR = 6  # NUM. OF PARAMETERS TO BE FITTED
 NDAC = 3  # NUM DATA PER CELL: X, Y, T
 
-
 # ===================================== #
 # ==== Initial values of 20 and t0 ==== #
 # ===================================== #
+
 SINI = SC  # INITIAL SLOWNESS
 TINI = 1000  # INITIAL TIME
 
 # ========================= #
 # ==== Detector design ==== #
 # ========================= #
+
 # RECTANGULAR DETECTOR WITH NCX*NCY RECTANGULAR ELECTRODES
 # IT IS ASSUMED THAT THE ORIGIN IS IN ONE EDGE OF THE DETECTOR
+
 NPLAN = 4  # NUM. OF PLANES
 NCX = 12  # NUM. OF CELLS IN X
 NCY = 10  # NUM. OF CELLS IN Y
@@ -52,6 +56,7 @@ WDT = 100  # TEMPORAL WIDTH
 # ======================= #
 # ==== Uncertainties ==== #
 # ======================= #
+
 SIGX = (1 / np.sqrt(12)) * WCX
 SIGY = (1 / np.sqrt(12)) * WCY
 SIGT = 300  # [PS]

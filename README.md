@@ -30,7 +30,7 @@ Some coding criteria:
 - Names of matrixes start with m
 ********************************************************************
 > **Typical units:**  
-> Mass, momentum and energy: *MeV*  
+> Mass, momentum and energy in *MeV*  
 > Distances in *mm*  
-> Time of *ps*
+> Time in *ps*
 ********************************************************************
