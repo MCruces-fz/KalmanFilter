@@ -156,7 +156,7 @@ def diag_matrix(dim: int, diag: list):
 
 
 class KalmanFilter:
-    def __init__(self, m_det):
+    def __init__(self, m_det, n_loops: int = 1):
 
         self.mdet = m_det
         # mdet_list = self.mdet.tolist()
@@ -168,6 +168,9 @@ class KalmanFilter:
 
         # self.mvr = np.zeros([4, 6])  # Initiation of state vectors matrix
 
+        self.nloops = n_loops  # Number of loops to gain accuracy in state vector
+        self.vr = np.zeros([4, 6])
+
         self.mstat = self.main()
 
     def main(self):
@@ -178,6 +181,8 @@ class KalmanFilter:
 
         nvar = NPAR + 2  # npar + 0 column + 1 for quality
         ncol = NPLAN * NDAC + nvar
+
+        nloops = self.nloops
 
         mstat = np.zeros([0, ncol])
 
@@ -192,6 +197,11 @@ class KalmanFilter:
             kx4, ky4, kt4, x0, y0, t0 = self.set_params(i4, iplan4)
 
             vr = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
+
+            if nloops == self.nloops:
+                self.vr[0] = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
+            else:
+                self.vr[0] = self.vr[3]
 
             for i3 in range(ncel3):
                 kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
