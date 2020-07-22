@@ -187,67 +187,59 @@ class KalmanFilter:
 
         dcut = 0.995  # Defined threshold to consider positives
 
-        iplan3 = 3  # plane n. 4
-        ncel3 = int(self.mdet[iplan3, 0])  # nr. of hits plane 4
-        for i3 in range(ncel3):
-            kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
+        iplan1, iplan2, iplan3, iplan4 = 0, 1, 2, 3  # Index for planes T1, T2, T3, T4 respectively
+        ncel1, ncel2, ncel3, ncel4 = self.mdet[:, 0].astype(np.int)  # Nr. of hits in each plane
+
+        for i4 in range(ncel4):
+            kx4, ky4, kt4, x0, y0, t0 = self.set_params(i4, iplan4)
 
             vr = np.asarray([x0, 0, y0, 0, t0, SC])  # we assume a normal state vector
 
-            iplan2 = 2  # plane n. 3
-            ncel2 = int(self.mdet[iplan2, 0])  # nr. of hits plane 3
-
-            for i2 in range(ncel2):
-                kx2, ky2, kt2, x0, y0, t0 = self.set_params(i2, iplan2)
+            for i3 in range(ncel3):
+                kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
 
                 vdat = np.asarray([x0, y0, t0])
 
                 vrp = vr  # save previous values
                 mErrp = self.mErr
 
-                vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan2)
+                vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan3)
 
                 phits = 2
-                vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, 0, 0, 0, vr2])
+                vstat = np.hstack([phits, kx4, ky4, kt4, kx3, ky3, kt3, 0, 0, 0, 0, 0, 0, vr2])
                 cutf = self.fcut(vstat, vr2, mErr2, vdat)
                 vstat = np.hstack([vstat, cutf])
 
                 if cutf > dcut:
-                    iplan1 = 1  # plane 2
-                    ncel1 = int(self.mdet[iplan1, 0])
-
-                    for i1 in range(ncel1):
-                        kx1, ky1, kt1, x0, y0, t0 = self.set_params(i1, iplan1)
+                    for i2 in range(ncel2):
+                        kx2, ky2, kt2, x0, y0, t0 = self.set_params(i2, iplan2)
 
                         vdat = np.asarray([x0, y0, t0])
 
                         vrp2 = vr2
                         mErrp2 = mErr2
 
-                        vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan1)
+                        vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan2)
 
                         phits = 3
-                        vstat = np.hstack([phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, 0, 0, 0, vr3])
+                        vstat = np.hstack([phits, kx4, ky4, kt4, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, vr3])
                         cutf = self.fcut(vstat, vr3, mErr3, vdat)
                         vstat = np.hstack([vstat, cutf])
 
                         if cutf > dcut:
-                            iplan0 = 0  # plane 1
-                            ncel0 = int(self.mdet[iplan0, 0])
-
-                            for i0 in range(ncel0):
-                                kx0, ky0, kt0, x0, y0, t0 = self.set_params(i0, iplan0)
+                            for i0 in range(ncel1):
+                                kx1, ky1, kt1, x0, y0, t0 = self.set_params(i0, iplan1)
 
                                 vdat = np.asarray([x0, y0, t0])
 
-                                vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan0)
+                                vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan1)
 
                                 vrp3 = vr3
                                 mErrp3 = mErr3
 
                                 phits = 4
                                 vstat = np.hstack(
-                                    [phits, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, kx0, ky0, kt0, vr4])
+                                    [phits, kx4, ky4, kt4, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, vr4])
                                 cutf = self.fcut(vstat, vr4, mErr4, vdat)
                                 vstat = np.hstack([vstat, cutf])
 
