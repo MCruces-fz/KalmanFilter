@@ -170,6 +170,8 @@ class KalmanFilter:
 
         self.mVd = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])  # Matrix V_d -> measurement uncertainties
 
+        # self.mvr = np.zeros([4, 6])  # Initiation of state vectors matrix
+
         self.mstat = self.main()
 
     def main(self):
@@ -193,7 +195,7 @@ class KalmanFilter:
         for i4 in range(ncel4):
             kx4, ky4, kt4, x0, y0, t0 = self.set_params(i4, iplan4)
 
-            vr = np.asarray([x0, 0, y0, 0, t0, SC])  # we assume a normal state vector
+            vr = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
 
             for i3 in range(ncel3):
                 kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
@@ -227,8 +229,8 @@ class KalmanFilter:
                         vstat = np.hstack([vstat, cutf])
 
                         if cutf > dcut:
-                            for i0 in range(ncel1):
-                                kx1, ky1, kt1, x0, y0, t0 = self.set_params(i0, iplan1)
+                            for i1 in range(ncel1):
+                                kx1, ky1, kt1, x0, y0, t0 = self.set_params(i1, iplan1)
 
                                 vdat = np.asarray([x0, y0, t0])
 
@@ -249,6 +251,13 @@ class KalmanFilter:
         return mstat
 
     def set_params(self, iN: int, iplanN: int):
+        """
+        It sets parameters of indexes of cells and possitions respectively,
+        taking data from self.mdet
+        :param iN: Integer which defines the data index.
+        :param iplanN: Integer which defines the plane index.
+        :return: Parameters kxN, kyN, ktN, x0, y0, t0 where N is the plane (TN).
+        """
         icel = 1 + iN * NDAC
         kxN, kyN, ktN = self.mdet[iplanN, icel:icel + NDAC]
         x0 = kxN * WCX - (WCX / 2)
