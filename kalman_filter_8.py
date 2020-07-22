@@ -42,7 +42,7 @@ import sys
 
 #
 np.set_printoptions(formatter={'float': '{:.3f}'.format})
-np.random.seed(42)
+np.random.seed(17)
 #
 ###################################################
 ####################Constants######################
