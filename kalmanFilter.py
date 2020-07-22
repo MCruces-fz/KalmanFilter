@@ -10,10 +10,8 @@ Miguel Cruces
 
 """
 
-import numpy as np
 from numpy.linalg import inv
 from scipy import stats
-import sys
 from const import *
 
 np.set_printoptions(formatter={'float': '{:.3f}'.format})
@@ -29,11 +27,11 @@ class GenerateInputData:
         self.nt = 0
 
         # Data vectors
-        vdx = np.zeros(NPLAN)
-        vdy = np.zeros(NPLAN)
-        vdt = np.zeros(NPLAN)
+        # vdx = np.zeros(NPLAN)
+        # vdy = np.zeros(NPLAN)
+        # vdt = np.zeros(NPLAN)
 
-        mtrec = np.zeros([NTRACK, NPAR])  # reconstructed tracks matrix
+        # mtrec = np.zeros([NTRACK, NPAR])  # reconstructed tracks matrix
         self.mtgen = np.zeros([NTRACK, NPAR])  # generated tracks matrix
         self.vdat = np.zeros(NPLAN * NDAC)  # digitalizing tracks vector
         self.vdpt = np.zeros(NPLAN * NDAC)  # vector with impact point
@@ -126,23 +124,21 @@ class GenerateInputData:
     def matrix_det(self):  # mdat -> mdet
         if np.all(self.mdat == 0):  # Check if mdat is all zero
             raise Exception('No tracks available! Matrix mdat is all zero.')
-        ndac = 3
-        ntrk, nplan = self.mdat.shape  # Number of tracks, number of plans
-        nplan = int(nplan / ndac)
-        ncol = 1 + ndac * ntrk  # One more column to store number of tracks
-        mdet = np.zeros([nplan, ncol])  # TODO: Preguntar a Sara por qué estas vueltas.
+        ntrk, _ = self.mdat.shape  # Number of tracks, number of plans
+        ncol = 1 + NDAC * ntrk  # One more column to store number of tracks
+        mdet = np.zeros([NPLAN, ncol])
         idat = 0
-        for ip in range(nplan):
+        for ip in range(NPLAN):
             idet = 0
             for it in range(ntrk):
                 ideti = idet + 1
-                idetf = ideti + ndac
-                idatf = idat + ndac
+                idetf = ideti + NDAC
+                idatf = idat + NDAC
                 mdet[ip, ideti:idetf] = self.mdat[it, idat:idatf]
                 if not np.all((mdet[ip, ideti:idetf] == 0)):  # checks if all are zero
                     mdet[ip, 0] += 1
-                idet += ndac
-            idat += ndac
+                idet += NDAC
+            idat += NDAC
         return mdet
 
 
@@ -163,7 +159,7 @@ class KalmanFilter:
     def __init__(self, m_det):
 
         self.mdet = m_det
-        mdet_list = self.mdet.tolist()
+        # mdet_list = self.mdet.tolist()
 
         # Error matrix for vr
         self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])
@@ -185,7 +181,7 @@ class KalmanFilter:
 
         mstat = np.zeros([0, ncol])
 
-        ncomb = ntrmx  # Number of possible combinations == Maximum number of possibles tracks
+        # ncomb = ntrmx  # Number of possible combinations == Maximum number of possibles tracks
 
         dcut = 0.995  # Defined threshold to consider positives
 
@@ -202,8 +198,8 @@ class KalmanFilter:
 
                 vdat = np.asarray([x0, y0, t0])
 
-                vrp = vr  # save previous values
-                mErrp = self.mErr
+                # vrp = vr  # save previous values
+                # mErrp = self.mErr
 
                 vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan3)
 
@@ -218,8 +214,8 @@ class KalmanFilter:
 
                         vdat = np.asarray([x0, y0, t0])
 
-                        vrp2 = vr2
-                        mErrp2 = mErr2
+                        # vrp2 = vr2
+                        # mErrp2 = mErr2
 
                         vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan2)
 
@@ -236,8 +232,8 @@ class KalmanFilter:
 
                                 vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan1)
 
-                                vrp3 = vr3
-                                mErrp3 = mErr3
+                                # vrp3 = vr3
+                                # mErrp3 = mErr3
 
                                 phits = 4
                                 vstat = np.hstack(
@@ -348,7 +344,7 @@ class KalmanFilter:
             zf = VZI[ip - 1]
 
             # Propagation step
-            vrp = vr
+            # vrp = vr
             vr, mErr = self.fprop(vr, mErr, zi, zf)
 
             mH = self.jacobi(vr, zi)  # Jacobian matrix
