@@ -254,13 +254,7 @@ class KalmanFilter:
                                 if cutf > dcut:
                                     # nr of planes hit, cells, saeta, fit quality
                                     mstat = np.vstack([mstat, vstat])
-                                else:
-                                    continue
-                        else:
-                            continue
-                else:
-                    continue
-        return mstat  # mstat[~np.all(mstat == 0, axis=1)]
+        return mstat
 
     def set_params(self, iN: int, iplanN: int):
         icel = 1 + iN * NDAC
