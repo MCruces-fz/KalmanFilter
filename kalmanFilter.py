@@ -9,13 +9,20 @@ miguel.cruces@rai.usc.es
 Miguel Cruces
 
 """
-
+import matplotlib as mpl
+from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from scipy import stats
 from const import *
 
 np.set_printoptions(formatter={'float': '{:.3f}'.format})
-np.random.seed(17)
+np.random.seed(34)
+'''
+Seed with first vertical line (NTRACK = 1) -> 34
+Seed with 5 tracks (NTRACK = 5) -> 17
+'''
 
 
 class GenerateInputData:
@@ -23,7 +30,7 @@ class GenerateInputData:
     It generates the input data randomly.
     """
 
-    def __init__(self):
+    def __init__(self, m_dat=None):
         self.nt = 0
 
         # Data vectors
@@ -40,7 +47,8 @@ class GenerateInputData:
 
         self.tracks_generation()
         self.digitization()
-        # self.mdat[0, 3:6] = [0, 0, 0]
+        if m_dat is not None:  # Force self.mdat to new value
+            self.mdat = m_dat
         self.mdet = self.matrix_det()
 
     def tracks_generation(self):
@@ -159,17 +167,13 @@ class KalmanFilter:
     def __init__(self, m_det, n_loops: int = 1):
 
         self.mdet = m_det
-        # mdet_list = self.mdet.tolist()
 
-        # Error matrix for vr
-        self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])
-
+        self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error matrix for vr
         self.mVd = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])  # Matrix V_d -> measurement uncertainties
 
-        # self.mvr = np.zeros([4, 6])  # Initiation of state vectors matrix
-
         self.nloops = n_loops  # Number of loops to gain accuracy in state vector
-        self.vr = np.zeros([4, 6])
+        max_hits = max(self.mdet[:, 0]).astype(np.int)  # Maximum of hits in one plane, for all planes
+        self.vr = np.zeros([4, max_hits, 6])  # Initiation of state vectors matrix
 
         self.mstat = self.main()
 
@@ -181,27 +185,29 @@ class KalmanFilter:
 
         nvar = NPAR + 2  # npar + 0 column + 1 for quality
         ncol = NPLAN * NDAC + nvar
+        mstat = np.zeros([0, ncol])
 
         nloops = self.nloops
 
-        mstat = np.zeros([0, ncol])
-
         # ncomb = ntrmx  # Number of possible combinations == Maximum number of possibles tracks
-
-        dcut = 0.995  # Defined threshold to consider positives
 
         iplan1, iplan2, iplan3, iplan4 = 0, 1, 2, 3  # Index for planes T1, T2, T3, T4 respectively
         ncel1, ncel2, ncel3, ncel4 = self.mdet[:, 0].astype(np.int)  # Nr. of hits in each plane
 
+        dcut = 0.9 # 0.995  # Defined threshold to consider positives
+
+        # iplan1, iplan2, iplan3, iplan4 = 0, 1, 2, 3  # Index for planes T1, T2, T3, T4 respectively
+        # ncel1, ncel2, ncel3, ncel4 = self.mdet[:, 0].astype(np.int)  # Nr. of hits in each plane
+
         for i4 in range(ncel4):
             kx4, ky4, kt4, x0, y0, t0 = self.set_params(i4, iplan4)
 
-            vr = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
+            # vr = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
 
             if nloops == self.nloops:
-                self.vr[0] = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
+                self.vr[iplan4, i4] = np.asarray([x0, 0, y0, 0, t0, SC])  # We assume a normal state vector
             else:
-                self.vr[0] = self.vr[3]
+                self.vr[iplan4, i4] = self.vr[iplan1, i4]
 
             for i3 in range(ncel3):
                 kx3, ky3, kt3, x0, y0, t0 = self.set_params(i3, iplan3)
@@ -211,11 +217,12 @@ class KalmanFilter:
                 # vrp = vr  # save previous values
                 # mErrp = self.mErr
 
-                vr2, mErr2 = self.fitkalman(vr, self.mErr, vdat, iplan3)
+                self.vr[iplan3, i3], mErr2 = self.fitkalman(self.vr[iplan4, i3], self.mErr, vdat, iplan3)
+                print(self.vr[iplan3, i3])
 
                 phits = 2
-                vstat = np.hstack([phits, kx4, ky4, kt4, kx3, ky3, kt3, 0, 0, 0, 0, 0, 0, vr2])
-                cutf = self.fcut(vstat, vr2, mErr2, vdat)
+                vstat = np.hstack([phits, kx4, ky4, kt4, kx3, ky3, kt3, 0, 0, 0, 0, 0, 0, self.vr[iplan3, i3]])
+                cutf = self.fcut(vstat, self.vr[iplan3, i3], mErr2, vdat)
                 vstat = np.hstack([vstat, cutf])
 
                 if cutf > dcut:
@@ -227,11 +234,12 @@ class KalmanFilter:
                         # vrp2 = vr2
                         # mErrp2 = mErr2
 
-                        vr3, mErr3 = self.fitkalman(vr2, mErr2, vdat, iplan2)
+                        self.vr[iplan2, i2], mErr3 = self.fitkalman(self.vr[iplan3, i2], mErr2, vdat, iplan2)
 
                         phits = 3
-                        vstat = np.hstack([phits, kx4, ky4, kt4, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, vr3])
-                        cutf = self.fcut(vstat, vr3, mErr3, vdat)
+                        vstat = np.hstack(
+                            [phits, kx4, ky4, kt4, kx3, ky3, kt3, kx2, ky2, kt2, 0, 0, 0, self.vr[iplan2, i2]])
+                        cutf = self.fcut(vstat, self.vr[iplan2, i2], mErr3, vdat)
                         vstat = np.hstack([vstat, cutf])
 
                         if cutf > dcut:
@@ -240,15 +248,16 @@ class KalmanFilter:
 
                                 vdat = np.asarray([x0, y0, t0])
 
-                                vr4, mErr4 = self.fitkalman(vr3, mErr3, vdat, iplan1)
+                                self.vr[iplan1, i1], mErr4 = self.fitkalman(self.vr[iplan2, i1], mErr3, vdat, iplan1)
 
                                 # vrp3 = vr3
                                 # mErrp3 = mErr3
 
                                 phits = 4
                                 vstat = np.hstack(
-                                    [phits, kx4, ky4, kt4, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1, vr4])
-                                cutf = self.fcut(vstat, vr4, mErr4, vdat)
+                                    [phits, kx4, ky4, kt4, kx3, ky3, kt3, kx2, ky2, kt2, kx1, ky1, kt1,
+                                     self.vr[iplan1, i1]])
+                                cutf = self.fcut(vstat, self.vr[iplan1, i1], mErr4, vdat)
                                 vstat = np.hstack([vstat, cutf])
 
                                 if cutf > dcut:
@@ -362,8 +371,7 @@ class KalmanFilter:
             vdr, mVr = self.fpar2dat(vr, mErr, mH, zi, zf)  # Parameter  -> Measurument
 
             # new measurement
-            ndac = 3
-            vdi = np.zeros(ndac)
+            vdi = np.zeros(NDAC)
             vdi[0] = vdat[0]
             vdi[1] = vdat[1]
             vdi[2] = vdat[2]
@@ -403,15 +411,104 @@ class KalmanFilter:
         return cutf
 
 
+def plot_vec(vector, name='Vectors'):
+    fig = plt.figure(name)
+    ax = fig.gca(projection='3d')
+
+    # Unpack values
+    x0, xp, y0, yp, t0, _ = vector
+
+    # Dictionary for changing time to distance
+    zd = {0: VZI[0], 1000: VZI[0],
+          1: VZI[1], 3000: VZI[1],
+          2: VZI[2], 4000: VZI[2],
+          3: VZI[3], 7000: VZI[3]}
+    t = round(t0, -3)
+    z0 = zd[t]
+
+    # Director cosines
+    cz = 1 / np.sqrt(xp**2 + yp**2 + 1)
+    cx, cy = xp * cz, yp * cz
+    print(f'Director cosines:\n cx -> {cx:.6f}\n cy -> {cy:.6f}\n cz -> {cz:.6f}')
+
+    # Definition of variables
+    N = 1000  # Size of the vector
+    x1, y1, z1 = N * cx, N * cy, N * cz
+    x = np.array([x0, x0 + x1])
+    y = np.array([y0, y0 + y1])
+    z = np.array([z0, z0 + z1])
+
+    # Plot configuration
+    ax.plot(x, y, z, label=f'vector')
+    ax.legend(loc='best')
+    ax.set_xlabel('X axis [mm]')
+    ax.set_xlim([0, LENX])
+    ax.set_ylabel('Y axis [mm]')
+    ax.set_ylim([0, LENY])
+    ax.set_zlabel('Z axis [m]')
+    plt.show()
+
+
+def plot_rays(matrix, name='Matrix Rays'):
+    fig = plt.figure(name)
+    ax = fig.gca(projection='3d')
+    #
+    # # Grab some test data.
+    # X, Y = np.linspace(0, 12, 100), np.linspace(0, 12, 100)
+    # X, Y = np.meshgrid(X, Y)
+    # print(X, Y)
+    # z = X
+    # # Plot a basic wireframe.
+    # ax.plot_wireframe(X, Y, VZI[0], rstride=10, cstride=10)
+    # ax.plot_wireframe(X, Y, VZI[1], rstride=10, cstride=10)
+    # ax.plot_wireframe(X, Y, VZI[2], rstride=10, cstride=10)
+    # ax.plot_wireframe(X, Y, VZI[3], rstride=10, cstride=10)
+
+    # z = VZI.copy()
+    nrow, ncol = matrix.shape
+    init = 0
+    if ncol > 12:
+        # z.reverse()
+        init = 1
+    for i in range(nrow):
+        x = matrix[i, np.arange(0, 12, 3) + init]
+        y = matrix[i, np.arange(1, 12, 3) + init]
+        z = matrix[i, np.arange(2, 12, 3) + init]
+        print(f'Ray {i + init}\n vector X: {x}\n vector Y: {y}')
+        ax.plot(x, y, z, label=f'Ray {i}')
+    ax.legend(loc='best')
+    ax.set_xlabel('X axis [cell index]')
+    ax.set_xlim([0, NCX])
+    ax.set_ylabel('Y axis [cell index]')
+    ax.set_ylim([0, NCY])
+    ax.set_zlabel('Z axis [ps]')
+    plt.show()
+
+
 if __name__ == "__main__":
-    GI = GenerateInputData()
+    #                  x  y  Time
+    m_dat = np.array([[1, 6, 1000,
+                       1, 5, 3000,
+                       1, 5, 4000,
+                       1, 4, 7000]])  # Force mdat (it must be NTRACK = 1)
+
+    GI = GenerateInputData(m_dat=m_dat)
 
     mdpt1 = GI.mdpt
     mdat1 = GI.mdat
     mdet1 = GI.mdet
+    mdet_xy = np.vstack([mdet1[:, 0],  # Hits per plane
+                         mdet1[:, 1] * WCX,  # Y [mm]
+                         mdet1[:, 2] * WCY,  # X [mm]
+                         mdet1[:, 3]  # Time [ps]
+                         ]).T  # mdet1 with x & y in mm
 
     KF = KalmanFilter(mdet1)
 
     mstat1 = KF.mstat
     mVd1 = KF.mVd
     mErr1 = KF.mErr
+    vr1 = KF.vr
+
+    # plot_rays(mdat1, name='mdat')
+    # plot_rays(mstat1, name='mstat')
