@@ -345,6 +345,7 @@ def fitkalman(vzi, vr, mErr, vdat, iplan):
     for ip in range(iplan + 1, iplan, -1):  # loop on planes
         zi = vzi[ip]
         zf = vzi[ip - 1]
+        # print(zi, zf)
 
         # Propagation step
         vrp = vr

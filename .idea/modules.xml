@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/KalmanFilter.iml" filepath="$PROJECT_DIR$/.idea/KalmanFilter.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../TRISTAN-fit/.idea/TRISTAN-fit.iml" filepath="$PROJECT_DIR$/../TRISTAN-fit/.idea/TRISTAN-fit.iml" />
     </modules>
   </component>
 </project>
