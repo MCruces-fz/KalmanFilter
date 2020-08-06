@@ -400,8 +400,8 @@ class KalmanFilter:
         bm = 0.2  # beta  min
         cmn = bm * C
         smx = 1 / cmn
-        ndat = vstat[0] * NDAC
-        ndf = ndat - NPAR
+        ndat = vstat[0] * NDAC  #
+        ndf = ndat - NPAR  # Degrees of Freedom
 
         xd, yd, td = vdat
 
@@ -416,7 +416,7 @@ class KalmanFilter:
         else:
             if ndf != 0:
                 s2 = ((xd - x0) / sigx) ** 2 + ((yd - y0) / sigy) ** 2 + ((td - t0) / sigt) ** 2
-                cutf = stats.chi2.sf(s2, ndf)
+                cutf = stats.chi2.sf(s2, ndf)  # Survival function
             else:
                 cutf = 1
 
