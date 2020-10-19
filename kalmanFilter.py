@@ -7,13 +7,14 @@ miguel.cruces@rai.usc.es
 
 @author:
 Miguel Cruces
-
 """
 # import matplotlib as mpl
 from mpl_toolkits.mplot3d import Axes3D
 # import numpy as np
 # from numpy.linalg import inv
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import mpl_toolkits.mplot3d.art3d as art3d
 from scipy import stats
 from const import *
 
@@ -25,7 +26,7 @@ Seed with 5 tracks (NTRACK = 5) -> 17
 '''
 
 
-class GenerateInputData:
+class GenerateTracks:
     """
     It generates the input data randomly.
     """
@@ -51,7 +52,7 @@ class GenerateInputData:
             self.mdat = m_dat
         self.mdet = self.matrix_det()
 
-    def tracks_generation(self):
+    def tracks_generation(self):  # TODO: Rename to gene_tracks
         """
         It generates the parameters to construct the tracks as lines.
         """
@@ -65,12 +66,12 @@ class GenerateInputData:
             tth = np.arccos(rcth)  # theta
             tph = np.random.random() * 2 * np.pi  # phi
 
-            x0 = np.random.random() * LENX
+            x0 = np.random.random() * LENX  # TODO: Change Saeta values to -> X0, Y0, T0, ..., YP, XP, ...
             y0 = np.random.random() * LENY
             t0 = TINI
             s0 = SINI
 
-            cx = np.sin(tth) * np.cos(tph)  # cosenos directores
+            cx = np.sin(tth) * np.cos(tph)  # Director Cosines
             cy = np.sin(tth) * np.sin(tph)
             cz = np.cos(tth)
             xp = cx / cz  # projected slope in the X-Z plane
@@ -398,7 +399,7 @@ class KalmanFilter:
 
     def fcut(self, vstat, vr, mErr, vdat):  # Function that returns quality factor
         bm = 0.2  # beta  min
-        cmn = bm * C
+        cmn = bm * VC
         smx = 1 / cmn
         ndat = vstat[0] * NDAC  #
         ndf = ndat - NPAR  # Degrees of Freedom
@@ -462,22 +463,69 @@ def plot_vec(vector, table='Vectors', name='Vector'):
     plt.show()
 
 
-def plot_rays(matrix, name='Matrix Rays'):
+def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str = "--"):
+    if table is None:
+        table = 'Vectors'
+    fig = plt.figure(table)
+    ax = fig.gca(projection='3d')
+
+    # Unpack values
+    x0, xp, y0, yp, t0, _ = vector
+
+    z_top = 0 * 0.3  # 7000 * 0.3  # Height at t0 = 0 ps
+    z0 = z_top - 0.3 * t0  # Height at t0 = 1000 ps
+
+    # Director cosines
+    cz = - 1 / np.sqrt(xp ** 2 + yp ** 2 + 1)
+    cx, cy = - xp * cz, - yp * cz
+    # print(f'Director cosines:\n cx -> {cx:.6f}\n cy -> {cy:.6f}\n cz -> {cz:.6f}')
+
+    # Definition of variables
+    vcut = 100  # This is a value to cut the rays a little higher
+    H = 1800 - vcut
+    Ht = - H / 0.3 - t0  # Base of the detector on time units
+    N = H / cz
+    x1, y1, z1 = N * cx, N * cy, Ht
+    x1, y1 = (x1 + WCX / 2) / WCX - 0.5, (y1 + WCY / 2) / WCY - 0.5
+    x0, y0 = (x0 + WCX / 2) / WCX - 0.5, (y0 + WCY / 2) / WCY - 0.5
+    x = np.array([x0, x0 + x1])
+    y = np.array([y0, y0 + y1])
+    z = np.array([z0, z0 + z1])
+
+    # Plot configuration
+    ax.plot(x, y, z, f"{frmt}", label=lbl)
+    # ax.scatter(x0 + x1, y0 + y1, z0 + z1, marker='^')
+    ax.legend(loc='best')
+    # ax.set_xlabel('X axis [mm]')
+    # ax.set_ylabel('Y axis [mm]')
+    # ax.set_zlabel('Z axis [mm]')
+    ax.set_xlim([-0.5, (LENX + WCX / 2) / WCX + 0.5])
+    ax.set_ylim([-0.5, (LENY + WCY / 2) / WCY + 0.5])
+    ax.set_zlim([-7000, -1000])
+
+    # Plot cell grid
+    if grids:
+        for zi in [-7000]:
+            for yi in np.arange(-0.5, 10.5 + 1):
+                for xi in np.arange(-0.5, 12.5 + 1):
+                    plt.plot([-0.5, 12.5], [yi, yi], [zi, zi], 'k', alpha=0.1)
+                    plt.plot([xi, xi], [-0.5, 10.5], [zi, zi], 'k', alpha=0.1)
+
+    plt.show()
+
+
+def plot_rays(matrix, table=None, name='Matrix Rays', cells: bool = False, mtrack=None, mrec=None):
+    if table is None:
+        table = name
+    if mtrack is not None:  # Generated tracks (saetas)
+        for trk in range(mtrack.shape[0]):
+            plot_saetas(mtrack[trk], table=table, lbl=f'Generated {trk}', frmt='--')
+    if mrec is not None:  # Reconstructed tracks (saetas)
+        for rec in range(mrec.shape[0]):
+            plot_saetas(mrec[rec], table=table, lbl=f'Reconstructed {rec}', frmt='-')
     fig = plt.figure(name)
     ax = fig.gca(projection='3d')
-    #
-    # # Grab some test data.
-    # X, Y = np.linspace(0, 12, 100), np.linspace(0, 12, 100)
-    # X, Y = np.meshgrid(X, Y)
-    # print(X, Y)
-    # z = X
-    # # Plot a basic wireframe.
-    # ax.plot_wireframe(X, Y, VZI[0], rstride=10, cstride=10)
-    # ax.plot_wireframe(X, Y, VZI[1], rstride=10, cstride=10)
-    # ax.plot_wireframe(X, Y, VZI[2], rstride=10, cstride=10)
-    # ax.plot_wireframe(X, Y, VZI[3], rstride=10, cstride=10)
-
-    # z = VZI.copy()
+    ax.set_title(name)
     nrow, ncol = matrix.shape
     init = 0
     if ncol > 12:
@@ -488,13 +536,19 @@ def plot_rays(matrix, name='Matrix Rays'):
         y = matrix[i, np.arange(1, 12, 3) + init]
         z = - matrix[i, np.arange(2, 12, 3) + init]
         # print(f'Ray {i + init}\n vector X: {x}\n vector Y: {y}')
-        ax.plot(x, y, z, label=f'Ray {i}')
+        ax.plot(x, y, z, ':', label=f'Ray {i}')
+        if cells:
+            for r in range(NPLAN):
+                p = Rectangle((x[r] - 0.5, y[r] - 0.5), 1, 1, alpha=0.3, color='red')
+                ax.add_patch(p)
+                art3d.pathpatch_2d_to_3d(p, z=z[r], zdir="z")
     ax.legend(loc='best')
     ax.set_xlabel('X axis [cell index]')
-    ax.set_xlim([0, NCX])
+    ax.set_xlim([-0.5, NCX + 0.5])
     ax.set_ylabel('Y axis [cell index]')
-    ax.set_ylim([0, NCY])
+    ax.set_ylim([-0.5, NCY + 0.5])
     ax.set_zlabel('Z axis [ps]')
+    ax.set_zlim([-7000, -1000])
     plt.show()
 
 
@@ -524,10 +578,10 @@ if __name__ == "__main__":
                         2, 2, 5000,
                         2, 1, 7100]])  # NTRACK = 5; Ray 3; seed 16
 
-    GI = GenerateInputData(m_dat=m_dat3)
+    GTracks = GenerateTracks(m_dat=m_dat3)
 
-    mdat1 = GI.mdat
-    mdet1 = GI.mdet
+    mdat1 = GTracks.mdat
+    mdet1 = GTracks.mdet
     mdet_xy = np.vstack([mdet1[:, 0],  # Hits per plane
                          mdet1[:, 1] * WCX - (WCX / 2),  # Y [mm]
                          mdet1[:, 2] * WCY - (WCY / 2),  # X [mm]

@@ -19,10 +19,10 @@
 *****************************
 
 
-### GenerateInputData class
+### GenerateTracks class
 It generates ntrack tracks from a charged particle and propagates them in 
 the Z axis direction through NPLAN planes.
-#### GenerateInputData.digitization() method
+#### GenerateTracks.digitization() method
 It simulates the digital answer in NPLAN planes of detectors, in which:
 - the coordinates (nx,ny) of the crossed pad are determined.
 - the flight time is determined integrating tint.
