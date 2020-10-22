@@ -78,8 +78,8 @@ class GenerateTracks:
             yp = cy / cz  # projected slope in the Y-Z plane
 
             # Coordinate where would the particle come out
-            xzend = x0 + xp * lenz
-            yzend = y0 + yp * lenz
+            xzend = x0 - xp * lenz
+            yzend = y0 - yp * lenz
 
             # We refer the coordinate to the detector center (xmid, ymid)
             xmid = xzend - (LENX / 2)
@@ -472,8 +472,8 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
     # Unpack values
     x0, xp, y0, yp, t0, _ = vector
 
-    z_top = 0 * 0.3  # 7000 * 0.3  # Height at t0 = 0 ps
-    z0 = z_top - 0.3 * t0  # Height at t0 = 1000 ps
+    z_top = 0 * 0.3  # Height in mm (at t0 = 0 ps)
+    z0 = z_top - 0.3 * t0  # Height in mm (at t0 = 1000 ps)
 
     # Director cosines
     cz = - 1 / np.sqrt(xp ** 2 + yp ** 2 + 1)
@@ -481,16 +481,15 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
     # print(f'Director cosines:\n cx -> {cx:.6f}\n cy -> {cy:.6f}\n cz -> {cz:.6f}')
 
     # Definition of variables
-    vcut = 100  # This is a value to cut the rays a little higher
-    H = 1800 - vcut
-    Ht = - H / 0.3 - t0  # Base of the detector on time units
+    H = 1800
+    Ht = - H / 0.3  # Base of the detector on time units (-6000 ps)
     N = H / cz
     x1, y1, z1 = N * cx, N * cy, Ht
     x1, y1 = (x1 + WCX / 2) / WCX - 0.5, (y1 + WCY / 2) / WCY - 0.5
     x0, y0 = (x0 + WCX / 2) / WCX - 0.5, (y0 + WCY / 2) / WCY - 0.5
     x = np.array([x0, x0 + x1])
     y = np.array([y0, y0 + y1])
-    z = np.array([z0, z0 + z1])
+    z = np.array([-t0, -t0 + z1])
 
     # Plot configuration
     ax.plot(x, y, z, f"{frmt}", label=lbl)
@@ -501,7 +500,7 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
     # ax.set_zlabel('Z axis [mm]')
     ax.set_xlim([-0.5, (LENX + WCX / 2) / WCX + 0.5])
     ax.set_ylim([-0.5, (LENY + WCY / 2) / WCY + 0.5])
-    ax.set_zlim([-7000, -1000])
+    # ax.set_zlim([-7000, -1000])
 
     # Plot cell grid
     if grids:
@@ -519,36 +518,41 @@ def plot_rays(matrix, table=None, name='Matrix Rays', cells: bool = False, mtrac
         table = name
     if mtrack is not None:  # Generated tracks (saetas)
         for trk in range(mtrack.shape[0]):
-            plot_saetas(mtrack[trk], table=table, lbl=f'Generated {trk}', frmt='--')
-    if mrec is not None:  # Reconstructed tracks (saetas)
-        for rec in range(mrec.shape[0]):
-            plot_saetas(mrec[rec], table=table, lbl=f'Reconstructed {rec}', frmt='-')
+            plot_saetas(mtrack[trk], table=table, lbl=f'Generated {trk}', frmt='r--')
     fig = plt.figure(name)
     ax = fig.gca(projection='3d')
     ax.set_title(name)
     nrow, ncol = matrix.shape
-    init = 0
     if ncol > 12:
         # z.reverse()
         init = 1
+        z_plan = [-7000, -5000, -4000, -1000]  # Time to reach each plane traveling in vertical (XP, YP) = (0, 0)
+    else:
+        init = 0
+        z_plan = [-1000, -4000, -5000, -7000]
     for i in range(nrow):
         x = matrix[i, np.arange(0, 12, 3) + init]
         y = matrix[i, np.arange(1, 12, 3) + init]
-        z = - matrix[i, np.arange(2, 12, 3) + init]
+        # z = - matrix[i, np.arange(2, 12, 3) + init]  # Time to reach... (XP, YP) != (0, 0)
         # print(f'Ray {i + init}\n vector X: {x}\n vector Y: {y}')
-        ax.plot(x, y, z, ':', label=f'Ray {i}')
+        ax.plot(x, y, z_plan, 'g:', label=f'Digitized {i}')
         if cells:
             for r in range(NPLAN):
-                p = Rectangle((x[r] - 0.5, y[r] - 0.5), 1, 1, alpha=0.3, color='red')
+                p = Rectangle((x[r] - 0.5, y[r] - 0.5), 1, 1, alpha=0.5, color='#FA8072')
                 ax.add_patch(p)
-                art3d.pathpatch_2d_to_3d(p, z=z[r], zdir="z")
+                art3d.pathpatch_2d_to_3d(p, z=z_plan[r], zdir="z")
+
+    if mrec is not None:  # Reconstructed tracks (saetas)
+        for rec in range(mrec.shape[0]):
+            plot_saetas(mrec[rec], table=table, lbl=f'Reconstructed {rec}', frmt='b-')
+
     ax.legend(loc='best')
     ax.set_xlabel('X axis [cell index]')
     ax.set_xlim([-0.5, NCX + 0.5])
     ax.set_ylabel('Y axis [cell index]')
     ax.set_ylim([-0.5, NCY + 0.5])
     ax.set_zlabel('Z axis [ps]')
-    ax.set_zlim([-7000, -1000])
+    # ax.set_zlim([-7000, -1000])
     plt.show()
 
 

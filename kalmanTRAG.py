@@ -72,8 +72,8 @@ def gene_tracks(all_tracks_in: bool = True):
         YP = cy / cz  # projected slope in the Y-Z plane
 
         # Coordinate where would the particle come out
-        xzend = X0 + XP * lenz
-        yzend = Y0 + YP * lenz
+        xzend = X0 - XP * lenz
+        yzend = Y0 - YP * lenz
 
         # We refer the coordinate to the detector center (xmid, ymid)
         xmid = xzend - (LENX / 2)
