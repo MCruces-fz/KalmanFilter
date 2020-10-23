@@ -470,10 +470,10 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
     ax = fig.gca(projection='3d')
 
     # Unpack values
-    x0, xp, y0, yp, t0, _ = vector
+    x0, xp, y0, yp, t0, s0 = vector
 
-    z_top = 0 * 0.3  # Height in mm (at t0 = 0 ps)
-    z0 = z_top - 0.3 * t0  # Height in mm (at t0 = 1000 ps)
+    z_top = 0 / SC  # Height in mm (at t0 = 0 ps)
+    z0 = z_top - t0 / SC  # Height in mm (at t0 = 1000 ps)
 
     # Director cosines
     cz = - 1 / np.sqrt(xp ** 2 + yp ** 2 + 1)
@@ -481,9 +481,9 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
     # print(f'Director cosines:\n cx -> {cx:.6f}\n cy -> {cy:.6f}\n cz -> {cz:.6f}')
 
     # Definition of variables
-    H = 1800
-    Ht = - H / 0.3  # Base of the detector on time units (-6000 ps)
-    N = H / cz
+    H = VZI[0]  # Top plane Height (1800 mm)
+    Ht = - H * SC  # Base of the detector on time units (-6000 ps)
+    N = H / cz  # Length of the ray
     x1, y1, z1 = N * cx, N * cy, Ht
     x1, y1 = (x1 + WCX / 2) / WCX - 0.5, (y1 + WCY / 2) / WCY - 0.5
     x0, y0 = (x0 + WCX / 2) / WCX - 0.5, (y0 + WCY / 2) / WCY - 0.5

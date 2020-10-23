@@ -11,7 +11,7 @@ Miguel Cruces
 """
 from scipy import stats
 from const import *  # Numpy as np imported in const.py
-from kalmanFilter import plot_rays
+from kalmanFilter import plot_rays, plot_saetas
 
 import matplotlib.pyplot as plt
 
@@ -19,7 +19,7 @@ plt.close("all")
 
 np.set_printoptions(formatter={'float': '{:.3f}'.format})
 
-np.random.seed(21)  # peq -> 3/3 Gran -> 3/3
+# np.random.seed(21)  # peq -> 3/3 Gran -> 3/3
 
 
 # np.random.seed(20)  # peq -> 3/3 Gran -> 3/3
@@ -62,7 +62,7 @@ def gene_tracks(all_tracks_in: bool = True):
     :return mtgen: Matrix of generated tracks (initial saetas).
     :return nt: Total number of tracks in the detector
     """
-    ctmx = np.cos(np.deg2rad(THMAX))  # theta_max cosine
+    ctmx = np.cos(np.deg2rad(THMAX))  # Theta max angle cosine
     # lenz = abs(VZI[0] - VZI[-1])  # Distance from bottom to top planes
     it = 0  # Number of tracks actually
     mtgen = np.zeros([NTRACK, NPAR])  # generated tracks matrix
@@ -70,15 +70,16 @@ def gene_tracks(all_tracks_in: bool = True):
     while i <= NTRACK:
         # Uniform distribution in cos(theta) and phi
         rcth = 1 - np.random.random() * (1 - ctmx)
-        tth = np.arccos(rcth)  # theta
-        tph = np.random.random() * 2 * np.pi  # phi
+        tth = np.arccos(rcth)  # theta random angle
+        tph = np.random.random() * 2 * np.pi  # phi random angle
 
         X0 = np.random.random() * LENX
         Y0 = np.random.random() * LENY
         T0 = TINI
         S0 = SINI
 
-        cx = np.sin(tth) * np.cos(tph)  # Director Cosines
+        # Director Cosines
+        cx = np.sin(tth) * np.cos(tph)
         cy = np.sin(tth) * np.sin(tph)
         cz = np.cos(tth)
         XP = cx / cz  # projected slope in the X-Z plane
@@ -157,36 +158,56 @@ def trag_digitization(nt: int, mtgen):
     return m_dpt, m_dat
 
 
-def gcut(vstat, vm, vr, s2_prev):
+def gcut(vstat, vr, k):
     """
     Function that returns quality factor by the second method
     """
     bm = 0.2  # beta min
     cmn = bm * VC
     smx = 1 / cmn
-    ndat = int(vstat[0] * NDAC)  # Number of measurement coordinates (x, y, t)
+    nhits = vstat[0]
+    ndat = int(nhits * NDAC)  # Number of measurement coordinates (x, y, t)
+    vhits = np.array(np.split(vstat[1:ndat + 1], nhits))
     ndf = ndat - NPAR  # Degrees of Freedom
-
-    xd, yd, td = vm
 
     # sigx2, _, sigy2, _, sigt2, _ = np.diag(C[k])
     sigx2, sigy2, sigt2 = SIGX ** 2, SIGY ** 2, SIGT ** 2
 
-    x0, _, y0, _, t0, s0 = vr
+    x0, xp, y0, yp, t0, s0 = vr
+    ks = np.sqrt(1 + xp ** 2 + yp ** 2)
+    print("==============================")
+    print(f"vr = {vr}")
 
     if s0 < 0 or s0 > smx:
         cut_f = 0
     else:
         if ndf > 0:
-            s2 = s2_prev + (xd - x0) ** 2 / sigx2 + (yd - y0) ** 2 / sigy2 + (td - t0) ** 2 / sigt2
-            cut_f = stats.chi2.sf(x=s2, df=ndf)  # Survival function
+            s_2 = 0
+            for ip, (xd, yd, td) in enumerate(vhits):
+                dtp = (td - t0)  # Almost always is t0 < td
+                dt = dtp * np.sqrt(1 - xp ** 2 - yp ** 2)
+                dz = (VZI[ip] - VZI[k])
+                print(f"dz = {VZI[ip]} - {VZI[k]} = {dz}; dtp = {dtp}; dt = {dt}; dtz = {dt/s0}")
+                # Saeta intersection at instant td [coordinates (x, y)]
+                x = x0 - xp * dt
+                y = y0 - yp * dt
+                t = t0 + ks * dt
+                # Measured coordinates in mm
+                xd *= WCX
+                yd *= WCY
+                print(f"(x, y, t) = ({x}, {y}, {t})")
+                print(f"(xd, yd, td) = ({xd:.3f}, {yd:.3f}, {td:.3f})")
+                print("-------")
+                s_2 += (xd - x) ** 2 / sigx2 + (yd - y) ** 2 / sigy2 + (td - t) ** 2 / sigt2
+            cut_f = stats.chi2.sf(x=s_2, df=ndf)  # Survival function
+            print(f"s2 = {s_2}, DoF = {ndf}, cutf = {cut_f}, dcut = {dcut}")
         elif not ndf:  # DoF == 0
             cut_f = 1
         else:
             print(f'WARNING! ndf = {ndf}')
             cut_f = np.nan
     # print(f'Plane T{k + 1}: cutf = {cut_f:.4f}; DoF = {int(vstat[0])}x{NDAC} - {NPAR} = {ndf}')
-    return cut_f, s2
+    return cut_f
 
 
 def matrix_det(m_dat):
@@ -463,6 +484,7 @@ for i4 in range(ncel4):
                     plane_hits += 1
 
                     vstat = set_vstat(k, i1, i2, i3, i4, plane_hits)
+                    # _ = gcut(vstat, r[k], k)
                     cutf, s2 = fcut(vstat, m, r[k], s2_prev)
                     vstat_cutf = np.hstack([vstat, cutf])
                     # print(f"vstat = {vstat_cutf}, dcut ({dcut})")
