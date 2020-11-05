@@ -22,10 +22,10 @@ np.set_printoptions(formatter={'float': '{:.3f}'.format})
 
 def tragaldabas_output(m_dat):
     """
-    Creates a matrix TRAGALDABAS output data like, in realistic format.
+    Creates a k_mat TRAGALDABAS output data like, in realistic format.
 
     :param m_dat: Matrix of generated and digitized tracks.
-    :return: Equivalent matrix to m_data, in realistic TRAGALDABAS format.
+    :return: Equivalent k_mat to m_data, in realistic TRAGALDABAS format.
     """
     if np.all(m_dat == 0):  # Check if mdat is all zero
         raise Exception('No tracks available! Matrix mdat is all zero ==> Run the program Again '
@@ -93,7 +93,7 @@ def fit_kalman(ri, Ci, xi, yi, ti, zi, xf, yf, tf, zf):
     delta_r = np.dot(K, delta_m)
     r3 = r4p + delta_r
 
-    # New C matrix
+    # New C k_mat
     C3 = C4p - np.dot(K, np.dot(H, C4p))
     pass
 
@@ -113,7 +113,7 @@ mdet = tragaldabas_output(mdat)  # Matrix with columns: ["Plane ID", "kX", "kY",
 
 # ================ MAIN FUNCTION =============== #
 
-C0 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error matrix
+C0 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error k_mat
 V = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])
 dcut = 0.995
 
@@ -134,7 +134,7 @@ for i4 in range(nhits):  # =====================================================
 
         # Step 1. - INITIALIZATION
         r4 = [x4, 0, y4, 0, t4, SC]  # Initial Guess for the saeta in fourth plane
-        C4 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error matrix (Initial Guess)
+        C4 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error k_mat (Initial Guess)
 
         # Step 2. - PREDICTION
         F = set_transport_func(1, z3 - z4)  # ks = 1 due to initial hypothesis
@@ -159,7 +159,7 @@ for i4 in range(nhits):  # =====================================================
         delta_r = np.dot(K, delta_m)
         r3 = r4p + delta_r
 
-        # New C matrix
+        # New C k_mat
         C3 = C4p - np.dot(K, np.dot(H, C4p))
 
         for i2 in range(nhits):  # ==================================================================== PLANE 2

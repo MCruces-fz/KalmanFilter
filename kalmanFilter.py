@@ -39,11 +39,11 @@ class GenerateTracks:
         # vdy = np.zeros(NPLAN)
         # vdt = np.zeros(NPLAN)
 
-        # mtrec = np.zeros([NTRACK, NPAR])  # reconstructed tracks matrix
-        self.mtgen = np.zeros([NTRACK, NPAR])  # generated tracks matrix
+        # mtrec = np.zeros([NTRACK, NPAR])  # reconstructed tracks k_mat
+        self.mtgen = np.zeros([NTRACK, NPAR])  # generated tracks k_mat
         self.vdat = np.zeros(NPLAN * NDAC)  # digitalizing tracks vector
         self.vdpt = np.zeros(NPLAN * NDAC)  # vector with impact point
-        self.mdat = np.zeros(NPLAN * NDAC)  # detector data matrix
+        self.mdat = np.zeros(NPLAN * NDAC)  # detector data k_mat
         self.mdpt = np.zeros(NPLAN * NDAC)  # impact point
 
         self.tracks_generation()
@@ -57,7 +57,7 @@ class GenerateTracks:
         It generates the parameters to construct the tracks as lines.
         """
         ctmx = np.cos(np.deg2rad(THMAX))  # theta_max cosine
-        lenz = abs(VZI[0] - VZI[-1])  # Distance from bottom to top planes
+        lenz = abs(VZ0[0] - VZ0[-1])  # Distance from bottom to top planes
         it = 0  # Number of tracks actually
 
         for i in range(NTRACK):
@@ -107,8 +107,8 @@ class GenerateTracks:
 
             it = 0
             for ip in range(NPLAN):
-                zi = VZI[ip]  # current Z
-                zt = VZI[0]  # Z top
+                zi = VZ0[ip]  # current Z
+                zt = VZ0[0]  # Z top
                 dz = zi - zt  # dz <= 0
                 # print(f'dz = {zi} - {zt} = {dz}')
                 xi = x0 + xp * dz
@@ -156,10 +156,10 @@ class GenerateTracks:
 
 def diag_matrix(dim: int, diag: list):
     """
-    Create squared matrix of dimXdim dimension with diag in the diagonal.
+    Create squared k_mat of dimXdim dimension with diag in the diagonal.
     :param dim: Quantity of rows/columns.
     :param diag: String of length dim with the diagonal values.
-    :return: Squared matrix of dimXdim dimension with diag in the diagonal.
+    :return: Squared k_mat of dimXdim dimension with diag in the diagonal.
     """
     arr = np.zeros([dim, dim])
     row, col = np.diag_indices(arr.shape[0])
@@ -172,12 +172,12 @@ class KalmanFilter:
 
         self.mdet = m_det
 
-        self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error matrix for vr
+        self.mErr = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error k_mat for vr
         self.mVd = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])  # Matrix V_d -> measurement uncertainties
 
         self.nloops = n_loops  # Number of loops to gain accuracy in state vector
         max_hits = max(self.mdet[:, 0]).astype(np.int)  # Maximum of hits in one plane, for all planes
-        self.vr = np.zeros([4, max_hits, 6])  # Initiation of state vectors matrix
+        self.vr = np.zeros([4, max_hits, 6])  # Initiation of state vectors k_mat
 
         self.mstat = self.main()
 
@@ -305,12 +305,12 @@ class KalmanFilter:
 
         vr1 = np.dot(mF, vr)
         vr1 = np.asarray(vr1)
-        # Propagation of the error matrix
+        # Propagation of the error k_mat
         mErr1 = np.dot(mF, np.dot(mErr, mF.T))
 
         return vr1, mErr1
 
-    def jacobi(self, vr, zi):  # Jacobian matrix
+    def jacobi(self, vr, zi):  # Jacobian k_mat
         mH = np.zeros([NDAC, NPAR])
 
         XP = vr[1]
@@ -354,13 +354,13 @@ class KalmanFilter:
 
     def fdat2par(self, mVr, mVd, mVc, mErr, mH, zi, zf):  # Projection in the parameter space
 
-        mWc = np.linalg.inv(mVc)  # weight matrix
+        mWc = np.linalg.inv(mVc)  # weight k_mat
         mKgain = np.dot(mErr, np.dot(mH.T, mWc))
         mWr = np.dot(mH.T, np.dot(mWc, mH))
 
         return mKgain, mWr
 
-    def update(self, mKgain, vdd, mWr, vr, mErr):  # Update the state vector and error matrix
+    def update(self, mKgain, vdd, mWr, vr, mErr):  # Update the state vector and error k_mat
 
         dvr = np.dot(mKgain, vdd)
         mdE = np.dot(mErr, np.dot(mWr, mErr))
@@ -371,8 +371,8 @@ class KalmanFilter:
 
     def fitkalman(self, vr, mErr, vdat, ip):
         # for ip in range(iplan + 1, iplan, -1):  # loop on planes  # TODO: Solo da una vuelta, es lo que querías?
-        zi = VZI[ip + 1]
-        zf = VZI[ip]
+        zi = VZ0[ip + 1]
+        zf = VZ0[ip]
         dz = zf - zi  # Negative.
         print(f'dz = {zf} - {zi} = {dz}')
 
@@ -382,13 +382,13 @@ class KalmanFilter:
         vr, mErr = self.fprop(vr, mErr, dz)  # zi, zf)
         print(f'vr after fprop(): {vr}')
 
-        mH = self.jacobi(vr, zi)  # Jacobian matrix
+        mH = self.jacobi(vr, zi)  # Jacobian k_mat
 
         vdr, mVr = self.fpar2dat(vr, mErr, mH, zi, zf)  # Parameter  -> Measurument # TODO: Deja vdr igual a vr.
 
         # new measurement
         vdd = vdat - vdr  # Difference between measurement and expected data
-        mVc = mVr + self.mVd  # Joint uncertainties matrix
+        mVc = mVr + self.mVd  # Joint uncertainties k_mat
 
         mKgain, mWr = self.fdat2par(mVr, self.mVd, mVc, mErr, mH, zi, zf)  # Meas. -> Proj.
 
@@ -432,10 +432,10 @@ def plot_vec(vector, table='Vectors', name='Vector'):
     x0, xp, y0, yp, t0, _ = vector
 
     # Dictionary for changing time to distance
-    zd = {0: VZI[0], 1000: VZI[0],
-          1: VZI[1], 4000: VZI[1],
-          2: VZI[2], 5000: VZI[2],
-          3: VZI[3], 7000: VZI[3]}
+    zd = {0: VZ0[0], 1000: VZ0[0],
+          1: VZ0[1], 4000: VZ0[1],
+          2: VZ0[2], 5000: VZ0[2],
+          3: VZ0[3], 7000: VZ0[3]}
     t = round(t0, -3)
     z0 = zd[t]
 
@@ -477,11 +477,11 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
 
     # Director cosines
     cz = - 1 / np.sqrt(xp ** 2 + yp ** 2 + 1)
-    cx, cy = - xp * cz, - yp * cz
+    cx, cy = xp * cz, yp * cz
     # print(f'Director cosines:\n cx -> {cx:.6f}\n cy -> {cy:.6f}\n cz -> {cz:.6f}')
 
     # Definition of variables
-    H = VZI[0]  # Top plane Height (1800 mm)
+    H = VZ0[0]  # Top plane Height (1800 mm)
     Ht = - H * SC  # Base of the detector on time units (-6000 ps)
     N = H / cz  # Length of the ray
     x1, y1, z1 = N * cx, N * cy, Ht
@@ -516,7 +516,8 @@ def plot_saetas(vector, table=None, lbl='Vector', grids: bool = False, frmt: str
 def plot_rays(matrix, table=None, name='Matrix Rays', cells: bool = False, mtrack=None, mrec=None):
     if table is None:
         table = name
-    if mtrack is not None:  # Generated tracks (saetas)
+    # Plot Generated Tracks (SAETAs)
+    if mtrack is not None:
         for trk in range(mtrack.shape[0]):
             plot_saetas(mtrack[trk], table=table, lbl=f'Generated {trk}', frmt='r--')
     fig = plt.figure(name)
@@ -526,14 +527,15 @@ def plot_rays(matrix, table=None, name='Matrix Rays', cells: bool = False, mtrac
     if ncol > 12:
         # z.reverse()
         init = 1
-        z_plan = [-7000, -5000, -4000, -1000]  # Time to reach each plane traveling in vertical (XP, YP) = (0, 0)
+        # Time to reach each plane traveling in vertical (XP, YP) = (0, 0)
+        z_plan = (- TINI - VZ1 * SINI)[::-1]  # [-6796, -4006, -2740, -1000] FIXME: Use real T0, S0
     else:
         init = 0
-        z_plan = [-1000, -4000, -5000, -7000]
+        z_plan = - TINI - VZ1 * SINI  # [-1000, -2740, -4006, -6796] FIXME: Use real T0, S0
     for i in range(nrow):
         x = matrix[i, np.arange(0, 12, 3) + init]
         y = matrix[i, np.arange(1, 12, 3) + init]
-        # z = - matrix[i, np.arange(2, 12, 3) + init]  # Time to reach... (XP, YP) != (0, 0)
+        # z = - k_mat[i, np.arange(2, 12, 3) + init]  # Time to reach... (XP, YP) != (0, 0)
         # print(f'Ray {i + init}\n vector X: {x}\n vector Y: {y}')
         ax.plot(x, y, z_plan, 'g:', label=f'Digitized {i}')
         if cells:
@@ -541,8 +543,8 @@ def plot_rays(matrix, table=None, name='Matrix Rays', cells: bool = False, mtrac
                 p = Rectangle((x[r] - 0.5, y[r] - 0.5), 1, 1, alpha=0.5, color='#FA8072')
                 ax.add_patch(p)
                 art3d.pathpatch_2d_to_3d(p, z=z_plan[r], zdir="z")
-
-    if mrec is not None:  # Reconstructed tracks (saetas)
+    # Plot Reconstructed Tracks (SAETAs)
+    if mrec is not None:
         for rec in range(mrec.shape[0]):
             plot_saetas(mrec[rec], table=table, lbl=f'Reconstructed {rec}', frmt='b-')
 

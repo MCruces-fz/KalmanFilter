@@ -43,13 +43,26 @@ TINI = 1000  # INITIAL TIME
 # RECTANGULAR DETECTOR WITH NCX*NCY RECTANGULAR ELECTRODES
 # IT IS ASSUMED THAT THE ORIGIN IS IN ONE EDGE OF THE DETECTOR
 
-VZI = [1800, 900, 600, 0]  # POSITION OF THE PLANES IN Z AXIS, NOT: [0, 600, 900, 1800]
-NPLAN = len(VZI)  # NUM. OF PLANES
+# Planes distribution:               [mm]   [mm]
+# T1 # -------------------------- # 1826      0  TOP
+#
+# T2 # -------------------------- # 1304    522
+# T3 # -------------------------- #  924    902
+#
+#
+# T4 # -------------------------- #   87   1739  BOTTOM
+#                                      0         GROUND
+
+# VZI = [1800, 1200, 900, 0]  # mm. POSITION OF THE PLANES IN Z AXIS, MEASURED FROM GROUND TO TOP
+# VZ = [0, 600, 900, 1800]  # mm. POSITION OF PLANES MEASURED FROM TOP TO BOTTOM
+VZ0 = np.array([1826, 1304, 924, 87])  # mm. REAL HEIGHTS
+VZ1 = VZ0[0] - VZ0  # mm. HEIGHTS MEASURED FROM TOP: [0, 522, 902, 1739]
+NPLAN = len(VZ0)  # NUM. OF PLANES
 NCX = 12  # NUM. OF CELLS IN X
 NCY = 10  # NUM. OF CELLS IN Y
 LENX = 1500  # mm. LENGTH IN X
 LENY = 1200  # mm. LENGTH IN Y
-LENZ = VZI[0] - VZI[-1]  # mm. LENGTH IN Z (HEIGHT OF THE DETECTOR)
+LENZ = VZ0[0] - VZ0[-1]  # mm. LENGTH IN Z (HEIGHT OF THE DETECTOR)
 WCX = LENX / NCX  # mm. CELL WIDTH IN X
 WCY = LENY / NCY  # mm. CELL WIDTH IN Y
 DT = 100  # DIGITIZER PRECISION

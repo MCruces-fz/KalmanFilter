@@ -15,25 +15,21 @@ from matplotlib.patches import Rectangle
 import mpl_toolkits.mplot3d.art3d as art3d
 import matplotlib.pyplot as plt
 
+plt.close("all")
+
+np.set_printoptions(formatter={'float': '{:.3f}'.format})
+
 # ========================================================================== #
 # ======= I N I T I A L   V A L U E S --- C O N F I G U R A T I O N ======== #
 # ========================================================================== #
 
-rd_seed: int or None = None
-"""
-Choose an integer seed for numpy random generator, or keep it random with 'None'
-"""
-dcut: float = 0.5
-ttcut: float = 1e-5
+dcut: float = 0.75
+ttcut: float = 0.00001
 if_repr: bool = False
 """
 Set if shows the 3D representation of rays on the detector
 """
-if_final_prints: bool = False
-"""
-Set if print final data
-"""
-if_save_diff: bool = False
+if_save_diff: bool = True
 """
 Set if save differences between parameters of the generated and reconstructed SAETAs,
     Sgen = [X0g, XPg, Y0g, YPg, T0g, S0g]
@@ -44,24 +40,33 @@ on 'saetas_file.csv'
 on append mode.
 """
 
-np.set_printoptions(formatter={'float': '{:.3f}'.format})
+
+# np.random.seed(21)  # peq -> 3/3 Gran -> 3/3
+# np.random.seed(20)  # peq -> 3/3 Gran -> 3/3
+# np.random.seed(19)  # peq -> 2/3 Gran -> 2/3
+# np.random.seed(18)  # peq -> 2/3 Gran -> 2/3
+# np.random.seed(17)  # peq -> 3/3 Gran -> 2/3
+# np.random.seed(16)  # If commented ==> random tracks
+# np.random.seed(15)  # peq -> 1/3 Gran -> 2/3                    ||  dcut=0.812 -> 3/2    dcut=0.813  -> 1/2
+# np.random.seed(14)  # peq -> 1/3 bien 2/3 mal Gran -> 2/3 bien    ||  dcut=0.8 ---> 2/2    dcut=0.3  ---> 1/2
+# np.random.seed(13)  # peq -> 3/3 bien +1 mal Gran -> 3/3
+# np.random.seed(12)  # peq -> 2/3 bien +1 mal -> 2/3 bien +1 mal
+# np.random.seed(11)  # peq -> 2/3 Gran -> 2/3
+# np.random.seed(6)  # Fallo al digitalizar (THMAX = 30)
+
 
 # ========================================================================== #
 # ============= K A L M A N   F I L T E R   F U N C T I O N S ============== #
 # ========================================================================== #
 
-# Randomize if rd_seed is an integer seed
-if rd_seed is not None:
-    np.random.seed(rd_seed)
-
 
 def diag_matrix(dim: int, diag: list):
     """
-    Create squared k_mat of dimXdim dimension with diag in the diagonal.
-
+    Create squared matrix of dimXdim dimension with diag in the diagonal.
+)
     :param dim: Quantity of rows/columns.
     :param diag: String of length dim with the diagonal values.
-    :return: Squared k_mat of dimXdim dimension with diag in the diagonal.
+    :return: Squared matrix of dimXdim dimension with diag in the diagonal.
     """
     arr = np.zeros([dim, dim])
     row, col = np.diag_indices(arr.shape[0])
@@ -83,7 +88,7 @@ def gene_tracks(all_tracks_in: bool = True):
     ctmx = np.cos(np.deg2rad(THMAX))  # Theta max angle cosine
     # lenz = abs(VZI[0] - VZI[-1])  # Distance from bottom to top planes
     it = 0  # Number of tracks actually
-    mtgen = np.zeros([NTRACK, NPAR])  # generated tracks k_mat
+    mtgen = np.zeros([NTRACK, NPAR])  # generated tracks matrix
     i = 1
     while i <= NTRACK:
         # Uniform distribution in cos(theta) and phi
@@ -93,8 +98,8 @@ def gene_tracks(all_tracks_in: bool = True):
 
         X0 = np.random.random() * LENX
         Y0 = np.random.random() * LENY
-        T0 = TINI + np.random.random() * 5 * TINI
-        # T0 = TINI
+        # T0 = TINI + np.random.random() * 5 * TINI
+        T0 = TINI
         S0 = SINI
 
         # Director Cosines
@@ -135,12 +140,12 @@ def trag_digitization(nt: int, mtgen):
 
     :param nt: Number of tracks generated across the detector.
     :param mtgen: Matrix of generated tracks
-    :return: m_dat (cell indices k_mat) and m_dpt (cell central
-        positions k_mat).
+    :return: m_dat (cell indices matrix) and m_dpt (cell central
+        positions matrix).
     """
     v_dat = np.zeros(NPLAN * NDAC)  # Digitalizing tracks vector
     v_dpt = np.zeros(NPLAN * NDAC)  # Vector with impact point
-    m_dat = np.zeros(NPLAN * NDAC)  # Detector data k_mat
+    m_dat = np.zeros(NPLAN * NDAC)  # Detector data matrix
     m_dpt = np.zeros(NPLAN * NDAC)  # Impact point
     nx = 0
     zt = VZ1[0]  # Z top
@@ -179,10 +184,10 @@ def trag_digitization(nt: int, mtgen):
 
 def matrix_det(m_dat):
     """
-    Creates a k_mat similar to TRAGALDABAS output data
+    Creates a matrix similar to TRAGALDABAS output data
 
     :param m_dat: Matrix of generated and digitized tracks.
-    :return: Equivalent k_mat to m_data, in TRAGALDABAS format.
+    :return: Equivalent matrix to m_data, in TRAGALDABAS format.
     """
     if np.all(m_dat == 0):  # Check if mdat is all zero
         raise Exception('No tracks available! Matrix mdat is all zero ==> Run the program Again '
@@ -208,11 +213,11 @@ def matrix_det(m_dat):
 
 def set_transport_func(ks: float, dz: int):
     """
-    It sets the transport k_mat between both planes separated by dz
+    It sets the transport matrix between both planes separated by dz
 
     :param ks: sqrt( 1 + XP**2 + YP**2)
     :param dz: distance between planes
-    :return: Transport function (k_mat | Numpy array)
+    :return: Transport function (matrix | Numpy array)
     """
     F = diag_matrix(NPAR, [1] * NPAR)  # Identity 6x6
     F[0, 1] = dz
@@ -227,7 +232,7 @@ def set_jacobi():
     """
     Jacobian || I(NDACxNPAR): Parameters (NPAR dim) --> Measurements (NDAC dim)
 
-    :return: Jacobi k_mat H
+    :return: Jacobi matrix H
     """
     H = np.zeros([NDAC, NPAR])
     rows = range(NDAC)
@@ -289,7 +294,7 @@ def m_coord(k, idn):
     return mdet_xy[k, ini:fin]
 
 
-def set_vstat(k: int, i1: int, i2: int, i3: int, i4: int, plane_hits: int, r):
+def set_vstat(k: int, i1: int, i2: int, i3: int, i4: int, plane_hits: int):
     """
     It sets the array:
     [ Nbr. hits, 0, 0, 0, ..., kx1, ky1, kt1, X0, XP, Y0, YP, T0, S0 ]
@@ -342,12 +347,12 @@ def fcut(vstat, vm, vr, s2_prev):
 
 def set_mKgain(H, Cn, V):
     """
-    It sets the K k_mat of gain and weights.
+    It sets the K matrix of gain and weights.
 
-    :param H: Jacobi k_mat
-    :param Cn: Noised uncertainty k_mat.
-    :param V: Error k_mat.
-    :return: K gain k_mat and weights.
+    :param H: Jacobi matrix
+    :param Cn: Noised uncertainty matrix.
+    :param V: Error matrix.
+    :return: K gain matrix and weights.
     """
     H_Cn_Ht = np.dot(H, np.dot(Cn, H.T))
     wghts = np.linalg.inv(V + H_Cn_Ht)
@@ -355,48 +360,68 @@ def set_mKgain(H, Cn, V):
     return K, wghts
 
 
-def plot_saetas(vector, fig_id: int or str or None = None, plt_title=None, lbl: str = 'Vector', grids: bool = False,
-                frmt: str = "--"):
-    """
-    Config Function for plot any SAETA with 6 parameters
+def time2space(tim):
+    return 2100 - tim * 0.3
 
-    :param vector: The SAETA vector [X0, XP, Y0, YP, T0, S0]
-    :param fig_id: Identification for the plot window
-    :param plt_title:  Title for the plot
-    :param lbl: Label for the SAETA
-    :param grids: Set cell grids (higher CPU requirements, not recommendable)
-    :param frmt: Format for the SAETA representation
-    """
-    # Plot configuration
+
+def space2time(spa):
+    return 7000 - spa / 0.3
+
+
+def time_transport(saeta, tf):
+    X0, XP, Y0, YP, T0, S0 = saeta
+    cz = 1 / np.sqrt(1 + XP ** 2 + YP ** 2)
+    cx = XP * cz
+    cy = YP * cz
+    # tanth = np.sqrt(XP**2 + YP**2)
+    # cosph = XP / tanth
+    # sinph = YP / tanth
+    X = X0 - cx * (tf - T0) / S0
+    Y = Y0 - cy * (tf - T0) / S0
+    saetaf = np.array([X, XP, Y, YP, tf, S0])
+    plot_saetas(saeta)
+    plot_saetas(saetaf)
+    return saetaf
+
+
+def plot_saetas(vector, fig_id=None, lbl='Vector', grids: bool = False, frmt: str = "--"):
     if fig_id is None:
-        fig_id = 'State Vectors'
+        fig_id = 'Vectors'
     fig = plt.figure(fig_id)
     ax = fig.gca(projection='3d')
-    if plt_title is not None:
-        ax.set_title(plt_title)
-    ax.set_xlabel('X axis / mm')
-    ax.set_ylabel('Y axis / mm')
-    ax.set_zlabel('Z axis / mm')
-    ax.set_xlim([0, LENX])
-    ax.set_ylim([0, LENY])
-    ax.set_zlim([VZ0[-1], VZ0[0]])
 
     # Unpack values
     x0, xp, y0, yp, t0, s0 = vector
 
-    # Definition of variables
-    z0 = VZ0[0]  # Detector Top Height
-    z1 = VZ0[-1]  # Detector Bottom Height
-    dz = z0 - z1  # Detector Height
-    x1 = xp * dz
-    y1 = yp * dz
+    z_top = 0 / SC  # Height in mm (at t0 = 0 ps)
+    z0 = z_top - t0 / SC  # Height in mm (at t0 = 1000 ps)
 
-    # Plot Vector
+    # Director cosines
+    cz = - 1 / np.sqrt(xp ** 2 + yp ** 2 + 1)
+    cx, cy = xp * cz, yp * cz
+    # print(f'Director cosines:\n cx -> {cx:.6f}\n cy -> {cy:.6f}\n cz -> {cz:.6f}')
+
+    # Definition of variables
+    H = VZ0[0]  # Top plane Height (1800 mm)
+    Ht = - H * SC  # Base of the detector on time units (-6000 ps)
+    N = H / cz  # Length of the ray
+    x1, y1, z1 = N * cx, N * cy, Ht
+    x1, y1 = (x1 + WCX / 2) / WCX - 0.5, (y1 + WCY / 2) / WCY - 0.5
+    x0, y0 = (x0 + WCX / 2) / WCX - 0.5, (y0 + WCY / 2) / WCY - 0.5
     x = np.array([x0, x0 + x1])
     y = np.array([y0, y0 + y1])
-    z = np.array([z0, z1])
+    z = np.array([-t0, -t0 + z1])
+
+    # Plot configuration
     ax.plot(x, y, z, f"{frmt}", label=lbl)
+    # ax.scatter(x0 + x1, y0 + y1, z0 + z1, marker='^')
     ax.legend(loc='best')
+    # ax.set_xlabel('X axis [mm]')
+    # ax.set_ylabel('Y axis [mm]')
+    # ax.set_zlabel('Z axis [mm]')
+    ax.set_xlim([-0.5, (LENX + WCX / 2) / WCX + 0.5])
+    ax.set_ylim([-0.5, (LENY + WCY / 2) / WCY + 0.5])
+    # ax.set_zlim([-7000, -1000])
 
     # Plot cell grid
     if grids:
@@ -405,94 +430,58 @@ def plot_saetas(vector, fig_id: int or str or None = None, plt_title=None, lbl: 
                 for xi in np.arange(-0.5, 12.5 + 1):
                     plt.plot([-0.5, 12.5], [yi, yi], [zi, zi], 'k', alpha=0.1)
                     plt.plot([xi, xi], [-0.5, 10.5], [zi, zi], 'k', alpha=0.1)
-    ax.legend(loc='best')
+
     plt.show()
 
 
-def plot_hit_ids(k_vec, fig_id: str = None, plt_title: str or None = None,
-                 digi_trk: bool = True, cells: bool = True, lbl: str = 'Digitized', frmt: str = 'g:'):
-    """
-    Config Function for plot any set of hits
-
-    :param k_vec: Set of hits
-    :param fig_id: Identification for the plot window
-    :param plt_title: Title for the plot
-    :param digi_trk: Set if reconstructed digitized track is shown
-    :param cells: Set if hit cell squares are shown
-    :param lbl: Label for the SAETA
-    :param frmt: Format for the SAETA representation
-    """
-    # Set Plot - Initial Config
-    if fig_id is None:
-        fig_id = plt_title
-    fig = plt.figure(fig_id)
-    ax = fig.gca(projection='3d')
-    if plt_title is not None:
-        ax.set_title(plt_title)
-    ax.set_xlabel('X axis / mm')
-    ax.set_ylabel('Y axis / mm')
-    ax.set_zlabel('Z axis / mm')
-    ax.set_xlim([0, LENX])
-    ax.set_ylim([0, LENY])
-    ax.set_zlim([VZ0[-1], VZ0[0]])
-
-    x = (k_vec[np.arange(0, 12, 3)] + 0) * WCX
-    y = (k_vec[np.arange(1, 12, 3)] + 0) * WCY
-
-    if digi_trk:
-        ax.plot(x, y, VZ0, frmt, label=lbl)
-    ax.plot(x, y, VZ0, 'k.', alpha=0.9)
-
-    if cells:
-        for ip in range(NPLAN):
-            p = Rectangle((x[ip] - 0.5 * WCX, y[ip] - 0.5 * WCY), 1, 1, alpha=0.9, color='#FA8072')
-            ax.add_patch(p)
-            art3d.pathpatch_2d_to_3d(p, z=VZ0[ip], zdir="z")
-
-    ax.legend(loc='best')
-    plt.show()
-    # fig.show()
-
-
-def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays', cells: bool = False, mtrack=None, mrec=None):
-    """
-    Config function for plot sets of hits and SAETAs
-
-    :param k_mat: Matrix with all hits indices and times
-    :param fig_id: Identification for the plot window
-    :param plt_title: Title for the plot
-    :param cells: Set if hit cell squares are shown
-    :param mtrack: Array with all SAETAs generated
-    :param mrec: Array with all SAETAs reconstructed
-    """
-    # Set Plot - Initial Config
+def plot_detector(matrix, fig_id=None, plt_title='Matrix Rays', cells: bool = False, mtrack=None, mrec=None):
     if fig_id is None:
         fig_id = plt_title
     fig = plt.figure(fig_id)
     ax = fig.gca(projection='3d')
     ax.set_title(plt_title)
-    ax.set_xlabel('X axis / mm')
-    ax.set_ylabel('Y axis / mm')
-    ax.set_zlabel('Z axis / mm')
-    ax.set_xlim([0, LENX])
-    ax.set_ylim([0, LENY])
-    ax.set_zlim([VZ0[-1], VZ0[0]])
 
     # Plot Generated Tracks (SAETAs)
     if mtrack is not None:
         for trk in range(mtrack.shape[0]):
             plot_saetas(mtrack[trk], fig_id=fig_id, lbl=f'Generated {trk}', frmt='r--')
 
-    # Plot Digitized Tracks (Hits By Indices)
-    if k_mat is not None:
-        for trk in range(k_mat.shape[0]):
-            plot_hit_ids(k_mat[trk], fig_id=fig_id, lbl=f'Digitized {trk}', frmt='g:', cells=cells)
+    nrow, ncol = matrix.shape
+    if ncol > 12:
+        # z.reverse()
+        init = 1
+        # Time to reach each plane traveling in vertical (XP, YP) = (0, 0)
+        z_plan = (- TINI - VZ1 * SINI)[::-1]  # [-6796, -4006, -2740, -1000] FIXME: Use real T0, S0
+    else:
+        init = 0
+        z_plan = - TINI - VZ1 * SINI  # [-1000, -2740, -4006, -6796] FIXME: Use real T0, S0
+    for i in range(nrow):
+        x = matrix[i, np.arange(0, 12, 3) + init]
+        y = matrix[i, np.arange(1, 12, 3) + init]
+        # z = - matrix[i, np.arange(2, 12, 3) + init]  # Time to reach... (XP, YP) != (0, 0)
+        # print(f'Ray {i + init}\n vector X: {x}\n vector Y: {y}')
+        digi_trk = True
+        if digi_trk:
+            ax.plot(x, y, z_plan, 'g:', label=f'Digitized {i}')
+        ax.plot(x, y, z_plan, 'k.', alpha=0.9)
+        if cells:
+            for r in range(NPLAN):
+                p = Rectangle((x[r] - 0.5, y[r] - 0.5), 1, 1, alpha=0.5, color='#FA8072')
+                ax.add_patch(p)
+                art3d.pathpatch_2d_to_3d(p, z=z_plan[r], zdir="z")
 
     # Plot Reconstructed Tracks (SAETAs)
     if mrec is not None:
         for rec in range(mrec.shape[0]):
             plot_saetas(mrec[rec], fig_id=fig_id, lbl=f'Reconstructed {rec}', frmt='b-')
 
+    ax.legend(loc='best')
+    ax.set_xlabel('X axis [cell index]')
+    ax.set_xlim([-0.5, NCX + 0.5])
+    ax.set_ylabel('Y axis [cell index]')
+    ax.set_ylim([-0.5, NCY + 0.5])
+    ax.set_zlabel('Z axis [ps]')
+    # ax.set_zlim([-7000, -1000])
     plt.show()
 
 
@@ -501,12 +490,6 @@ def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays', cells: bool 
 # ========================================================================== #
 
 def v_g0_tt(vs, z):
-    """
-    Sets the g0 value
-
-    :param vs: State vector (SAETA)
-    :param z: Height of the current plane of the detector
-    """
     vg0 = np.zeros(3)
     _, XP, _, YP, _, S0 = vs
     ks = np.sqrt(1 + XP ** 2 + YP ** 2)
@@ -514,17 +497,16 @@ def v_g0_tt(vs, z):
     return vg0
 
 
-'''
 def m_K_a_tt(vs, z, vw, vdat):
     """
-    It calculates the K k_mat and the new state vector.
+    It calculates the K matrix and the new state vector.
     NPAR =  6 parameters version: X0, XP, Y0, YP, T0, S0
 
     :param vs: State vector input
     :param z: Height in mm of the plane
     :param vw: Vector of cell widths
     :param vdat: Vector of measured data in mm
-    :return: K k_mat and vector for a pad plane
+    :return: K matrix and vector for a pad plane
     """
     mk = np.zeros([NPAR, NPAR])
     va = np.zeros(NPAR)
@@ -567,12 +549,11 @@ def m_K_a_tt(vs, z, vw, vdat):
     mk = mk + mk.T - np.diag(mk.diagonal())
 
     return mk, va
-'''
 
 
 def set_mG_tt(saeta, zi):
     """
-    Jacobian k_mat
+    Jacobian matrix
 
     :param saeta: State vector.
     :param zi: Height of the plane.
@@ -597,14 +578,14 @@ def set_mG_tt(saeta, zi):
 
 def set_K_tt(saeta, zi, mW):
     """
-    Calculates the K k_mat Gain
+    Calculates the K matrix Gain
 
     :param saeta: State vector
     :param zi: Height of the plane
     :param mW: Weights Matrix diagonal (WX, WY, WT)
-    :return: K k_mat = mG.T * mW * mG.
+    :return: K matrix = mG.T * mW * mG.
     """
-    mG = set_mG_tt(saeta, zi)  # mG: k_mat = partial m(s) / partial s
+    mG = set_mG_tt(saeta, zi)  # mG: matrix = partial m(s) / partial s
     mK = np.dot(mG.T, np.dot(mW, mG))
     return mK
 
@@ -617,36 +598,38 @@ def set_vstat_tt(mG, mW, vdat, vg0):
 
 def tim_track_fit(v_stat):
     vw = np.array([WX, WY, WT])  # Vector of Weights
-    mvw = diag_matrix(3, [WX, WY, WT])  # Wieght Matrix (inverse of the V diagonal k_mat)
+    mvw = diag_matrix(3, [WX, WY, WT])  # Wieght Matrix (inverse of the V diagonal matrix)
 
     saeta = v_stat[13:-1]
     k_vector = v_stat[:13]
 
     vs = saeta  # m_stat[it, 13:-1]  # State vector
-    mK = np.zeros([NPAR, NPAR])  # K k_mat initialization
+    mK = np.zeros([NPAR, NPAR])  # K matrix initialization
     va = np.zeros(NPAR)  # Final state vector initialization
     so = 0  # So (Store soi values on loop)
 
     for ip in range(NPLAN):  # Loop over hits in each track from TOP
         zi = VZ1[ip]  # [0, 522, 902, 1739] mm
         ii = ip * 3 + 1  # Initial index to search values
-        dxi = k_vector[ii] * WCX  # - (WCX / 2)
-        dyi = k_vector[ii + 1] * WCY  # - (WCY / 2)
+        dxi = k_vector[ii] * WCX - (WCX / 2)
+        dyi = k_vector[ii + 1] * WCY - (WCY / 2)
         dti = k_vector[ii + 2]
         vdat = np.array([dxi, dyi, dti])  # Measured data
 
-        mKi = set_K_tt(vs, zi, mvw)
+        mKi, vai = m_K_a_tt(vs, zi, vw, vdat)
+
+        mKi_new = set_K_tt(vs, zi, mvw)
         mG = set_mG_tt(vs, zi)
         vg0 = v_g0_tt(vs, zi)
-        vai = set_vstat_tt(mG, mvw, vdat, vg0)
+        vai_new = set_vstat_tt(mG, mvw, vdat, vg0)
 
-        mK += mKi
-        va += vai
+        mK += mKi_new
+        va += vai_new
         # print(f"vdat = {vdat}\n vg0 = {vg0}")
         so += np.dot((vdat - vg0).T, np.dot(mvw, (vdat - vg0)))  # soi values
 
-    mK = np.asmatrix(mK)  # K k_mat (symmetric)
-    mErr = mK.I  # Error k_mat (symmetric)
+    mK = np.asmatrix(mK)  # K matrix (symmetric)
+    mErr = mK.I  # Error matrix (symmetric)
 
     va = np.asmatrix(va).T  # Vertical Measurement Vector
     vsol = np.dot(mErr, va)  # SEA equation
@@ -666,172 +649,140 @@ def tim_track_fit(v_stat):
     return vsol, prob
 
 
-def kalman_filter_find(mdet):
-    """
-    Main Finding Function using Kalman Filter Algorithm
-
-    :param mdet: Matrix with columns: (nhits, kx, ky, time)
-    :return:
-        - mstat: Hello
-        - mtrec: World!
-    """
-    r = np.zeros([NPLAN, NPAR])  # Vector (parameters); dimension -> Number of Planes x maximum hits x parameters
-    C = np.zeros([NPLAN, NPAR, NPAR])  # Error Matrices
-
-    rp = np.zeros(r.shape)  # Projected vector and matrices
-    Cp = np.zeros(C.shape)
-
-    rn = np.zeros(r.shape)  # UNUSED projected vectors with noises
-    Cn = np.zeros(C.shape)
-
-    # ================== MAIN LOOP ================= #
-
-    C0 = diag_matrix(NPAR, [5 / WX, 50 * VSLP, 5 / WY, 50 * VSLP, 5 / WT, 10 * VSLN])  # Error k_mat
-    # C0 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error k_mat
-    V = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])
-    # Chi2 = 0
-    m_stat = np.zeros([0, 20])
-    mtrec = np.zeros([0, 20])
-
-    iplan1, iplan2, iplan3, iplan4 = 0, 1, 2, 3  # Index for planes T1, T2, T3, T4 respectively
-    ncel1, ncel2, ncel3, ncel4 = mdet[:, 0].astype(np.int)  # Nr. of hits in each plane
-
-    # iN is the index of the hit in the plane N
-    for i4 in range(ncel4):
-        for i3 in range(ncel3):
-            for i2 in range(ncel2):
-                for i1 in range(ncel1):
-                    s2 = 0
-                    hits = [i1, i2, i3, i4]  # Combination of chosen hit indices
-
-                    # Step 1. - INITIALIZATION
-                    kx4, ky4, kt4, x0, y0, t0 = set_params(iplan4, i4)
-                    r0 = [x0, 0, y0, 0, t0, SC]  # Hypothesis
-                    r[iplan4] = r0
-                    C[iplan4] = C0
-                    plane_hits = 1
-
-                    # k: index of plane and zk: height of plane k in mm
-                    for k, zk in list(enumerate(VZ1))[::-1][1:]:  # Iterates over [[2, 924], [1, 1304], [0, 1826]]
-                        s2_prev = s2 + 0
-                        # Step 2. - PREDICTION
-                        zi = VZ1[k + 1]  # Lower plane, higher index
-                        zf = VZ1[k]  # This plane
-                        dz = zf - zi  # dz < 0; It goes up, against Z axis
-                        hiti = hits[k + 1]  # hit index in lower plane
-                        hitf = hits[k]  # hit index in upper plane
-
-                        _, xp, _, yp, _, _ = r[k + 1]
-                        ks = np.sqrt(1 + xp ** 2 + yp ** 2)
-
-                        F = set_transport_func(ks, dz)
-                        rp[k] = np.dot(F, r[k + 1])
-                        Cp[k] = np.dot(F, np.dot(C[k + 1], F.T))
-
-                        # Step 3. - PROCESS NOISE  [UNUSED YET]
-                        rn[k] = rp[k]
-                        Cn[k] = Cp[k]  # + Q (random k_mat)
-
-                        # Step 4. - FILTRATION
-                        m = m_coord(k, hitf)  # Measurement
-
-                        H = set_jacobi()
-
-                        # Matrix K gain
-                        K, weights = set_mKgain(H, Cn[k], V)
-                        # weights = diag_matrix(NDAC, [SIGX, SIGY, SIGT])
-
-                        # New rk vector
-                        mr = np.dot(H, rn[k])
-                        delta_m = m - mr
-                        delta_r = np.dot(K, delta_m)
-                        r[k] = rn[k] + delta_r
-
-                        # New Ck k_mat
-                        C[k] = Cn[k] - np.dot(K, np.dot(H, Cn[k]))
-
-                        plane_hits += 1
-                        vstat = set_vstat(k, i1, i2, i3, i4, plane_hits, r)
-                        cutf, s2 = fcut(vstat, m, r[k], s2_prev)
-                        vstat_cutf = np.hstack([vstat, cutf])
-                        # print(f"vstat = {vstat_cutf}, dcut ({dcut})")
-                        if cutf > dcut and k != 0:
-                            continue  # Continues going up in planes
-                        else:
-                            if vstat_cutf[-1] > dcut:
-                                m_stat = np.vstack((m_stat, vstat_cutf))
-
-                                # Tim Track Analysis (Track Fitting)
-                                vs, prob = tim_track_fit(vstat_cutf)
-                                if prob > ttcut:
-                                    k_vector = vstat_cutf[0:13]
-                                    v_stat_tt = np.hstack((k_vector, vs, prob))
-                                    mtrec = np.vstack((mtrec, v_stat_tt))
-                            break  # It takes another hit configuration and saves vstat in m_stat
-    return m_stat, mtrec
-
-
 # ========================================================================== #
 # ====================== G E N E - D I G I T - A N A ======================= #
 # ========================================================================== #
 
 
-# ============== TRACKS GENERATION ============= #
+# =============== GENERATE TRACKS ============== #
 mtrk, nt = gene_tracks()
-"""
-- mtrk --> Initial Saetas
-- nt ----> Number of tracks in the detector
-"""
+# mtrk --> Initial Saetas
+# nt ----> Number of tracks in the detector
 
 # ================ DIGITIZATION ================ #
-mdpt, mdat = trag_digitization(nt, mtgen=mtrk)  #
-"""
-Digitization for TRAGALDABAS detector
-- mdat --> (kx1, ky2, time1, kx2, ky2, time2, ...)  Indices of impact
-- mdpt --> ( X1,  Y1,    T1,  X2,  Y2,    T2, ...)  Real points of impact / mm
-"""
+mdpt, mdat = trag_digitization(nt, mtgen=mtrk)  # Digitization for TRAGALDABAS detector
+# mdat --> (kx1, ky2, time1,   kx2, ky2, time2, ...)
+# mdpt --> (X1, Y1, T1,   X2, Y2, T2,   ...)  Real points of impact / mm
 
-mdet = matrix_det(mdat)
-"""
-Matrix with columns: (nhits, kx, ky, time)
-"""
-mdet_xy = set_mdet_xy(mdet)
-"""
-Matrix (mdet) with columns: (nhits, x [mm], y [mm], time)
-"""
+# =============== RECONSTRUCTION =============== #
+mdet = matrix_det(mdat)  # Matrix with columns: (nhits, kx, ky, time)
 
-# ================== ANALYSIS ================== #
+mdet_xy = set_mdet_xy(mdet)  # Matrix (mdet) with columns: (nhits, x [mm], y [mm], time)
 
-m_stat, mtrec = kalman_filter_find(mdet)
+r = np.zeros([NPLAN, NPAR])  # Vector (parameters); dimension -> Number of Planes x maximum hits x parameters
+C = np.zeros([NPLAN, NPAR, NPAR])  # Error Matrices
+
+rp = np.zeros(r.shape)  # Projected vector and matrices
+Cp = np.zeros(C.shape)
+
+rn = np.zeros(r.shape)  # UNUSED projected vectors with noises
+Cn = np.zeros(C.shape)
+
+# ================ MAIN FUNCTION =============== #
+
+C0 = diag_matrix(NPAR, [5 / WX, 50 * VSLP, 5 / WY, 50 * VSLP, 5 / WT, 10 * VSLN])  # Error matrix
+# C0 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error matrix
+V = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])
+Chi2 = 0
+m_stat = np.zeros([0, 20])
+mtrec = np.zeros([0, 20])
+
+iplan1, iplan2, iplan3, iplan4 = 0, 1, 2, 3  # Index for planes T1, T2, T3, T4 respectively
+ncel1, ncel2, ncel3, ncel4 = mdet[:, 0].astype(np.int)  # Nr. of hits in each plane
+
+# iN is the index of the hit in the plane N
+for i4 in range(ncel4):
+    for i3 in range(ncel3):
+        for i2 in range(ncel2):
+            for i1 in range(ncel1):
+                s2 = 0
+                hits = [i1, i2, i3, i4]  # Combination of hit indices
+                # hits = [0] * 4
+                # Step 1. - INITIALIZATION
+                kx4, ky4, kt4, x0, y0, t0 = set_params(iplan4, i4)
+                r0 = [x0, 0, y0, 0, t0, SC]  # Hypothesis
+                r[iplan4] = r0
+                C[iplan4] = C0
+                plane_hits = 1
+
+                # k: index of plane and zk: height of plane k in mm
+                # for k, zk in reversed(list(enumerate(VZI))[:-1]):  # [[2, 900], [1, 1200], [0, 1800]]
+                for k, zk in list(enumerate(VZ1))[::-1][1:]:  # [[2, 924], [1, 1304], [0, 1826]]
+                    s2_prev = s2 + 0
+                    # Step 2. - PREDICTION
+                    zi = VZ1[k + 1]  # Lower plane, higher index
+                    zf = VZ1[k]  # This plane
+                    dz = zf - zi  # dz < 0; It goes up, against Z axis
+                    hiti = hits[k + 1]  # hit index in lower plane
+                    hitf = hits[k]  # hit index in upper plane
+
+                    _, xp, _, yp, _, _ = r[k + 1]
+                    ks = np.sqrt(1 + xp ** 2 + yp ** 2)
+
+                    F = set_transport_func(ks, dz)
+                    rp[k] = np.dot(F, r[k + 1])
+                    Cp[k] = np.dot(F, np.dot(C[k + 1], F.T))
+
+                    # Step 3. - PROCESS NOISE  [UNUSED YET]
+                    rn[k] = rp[k]
+                    Cn[k] = Cp[k]  # + Q (random matrix)
+
+                    # Step 4. - FILTRATION
+                    m = m_coord(k, hitf)  # Measurement
+
+                    H = set_jacobi()
+
+                    # Matrix K gain
+                    K, weights = set_mKgain(H, Cn[k], V)
+                    # weights = diag_matrix(NDAC, [SIGX, SIGY, SIGT])
+
+                    # New rk vector
+                    mr = np.dot(H, rn[k])
+                    delta_m = m - mr
+                    delta_r = np.dot(K, delta_m)
+                    r[k] = rn[k] + delta_r
+
+                    # New Ck matrix
+                    C[k] = Cn[k] - np.dot(K, np.dot(H, Cn[k]))
+
+                    # Chi2
+                    Chi2 += np.dot(delta_m.T, np.dot(weights, delta_m))
+                    # print(f"chi2 = {np.dot(delta_m.T, np.dot(weights, delta_m))}")
+                    plane_hits += 1
+
+                    vstat = set_vstat(k, i1, i2, i3, i4, plane_hits)
+                    cutf, s2 = fcut(vstat, m, r[k], s2_prev)
+                    vstat_cutf = np.hstack([vstat, cutf])
+                    # print(f"vstat = {vstat_cutf}, dcut ({dcut})")
+                    if cutf > dcut and k != 0:
+                        # vstat_cutf_ok = vstat_cutf.copy()
+                        continue  # Continues going up in planes
+                    else:
+                        if vstat_cutf[-1] > dcut:
+                            m_stat = np.vstack((m_stat, vstat_cutf))
+
+                            # Tim Track Analysis
+                            vs, prob = tim_track_fit(vstat_cutf)
+                            if prob > ttcut:
+                                k_vector = vstat_cutf[0:13]
+                                v_stat_tt = np.hstack((k_vector, vs, prob))
+                                mtrec = np.vstack((mtrec, v_stat_tt))
+                        break  # It takes another hit configuration and saves vstat in m_stat
 
 # ========================================================================== #
-# ===================== R E P R E S E N T A T I O N S ====================== #
+# ====================== R E P R E S E N T A T I O N ======================= #
 # ========================================================================== #
 
 saeta_kf = m_stat[:, 13:-1]
 saeta_tt = mtrec[:, 13:-1]
-# plot_saetas(saeta_kf[0], fig_id=0, lbl=f'Reconstructed {0}', frmt='b-')
-# plot_hit_ids(m_stat[0, 1:13], fig_id='0', lbl=f'Digitized {0}', fmrt='g:', cells=True)
 if if_repr:
-    # FIXME: Plot squared cells doesn't work
-    plt.close("all")
-    k_mat_gene = mdat
-    plot_detector(k_mat_gene, plt_title=f"Kalman Filter || dcut = {dcut}", cells=True, mtrack=mtrk, mrec=saeta_kf)
-    plot_detector(k_mat_gene, plt_title=f"Tim Track || ttcut = {ttcut}", cells=True, mtrack=mtrk, mrec=saeta_tt)
-    k_mat_rec = m_stat[:, 1:13]
-    plot_detector(k_mat_rec, plt_title="Reconstructed by Indices", cells=True)
+    plot_detector(m_stat, cells=False)
+    plot_detector(mdat, plt_title=f"Kalman Filter || dcut = {dcut}", cells=True, mtrack=mtrk, mrec=saeta_kf)
+    plot_detector(mdat, plt_title=f"Tim Track || ttcut = {ttcut}", cells=True, mtrack=mtrk, mrec=saeta_tt)
 
-if if_final_prints:
-    print("# ================ P R I N T S ================ #")
-    print(f"Generated SAETAs:\n{mtrk}\n")
-    print(f"Track Finding SAETAs:\n{saeta_kf}\n")
-    print(f"Track Fitting SAETAs:\n{saeta_tt}")
-    try:
-        print(f"\nTrack Finding DIFFERENCES:\n{saeta_kf - mtrk}\n")
-        print(f"Track Fitting DIFFERENCES:\n{saeta_tt - mtrk}")
-    except ValueError:
-        pass
-    print("# ============================================= #")
+# print(f"gener = {mtrk}")
+# print(f"KF = {saeta_kf}")
+# print(f"TT = {saeta_tt}")
 
 if if_save_diff:
     with open("saetas_file.csv", "a+") as f:
@@ -841,8 +792,7 @@ if if_save_diff:
             prb = mtrec[:, -1][0]
             row = f"{X0},{XP},{Y0},{YP},{T0},{S0},{prb}\n"
             f.write(row)
-        except IndexError:
-            print('IndexError: Wait, man...')
+        except Exception as e:
             pass
 
 # TODO: Estudio de eficiencia:
@@ -852,12 +802,18 @@ if if_save_diff:
 #  ...
 #  Representar número de trazas reconstruídas sobre generadas, frente a dcut
 
+# TODO: Cambiar en plot_detector:
+#  - Saeta generada: linea con rayitas
+#  - Saeta reconstruida: línea contínua
+#  - Trazas mdat: línea punteada
+#  Corregir aceptancia (ajustar el tamaño de la grafica al tamaño de los planos)
+
 # TODO: Lluvias a distintas alturas (Preguntar a Hans)
 
 # TODO:
-#  Track searching / finding -> Encontrar los puntos por los que pasa (KF)
-#  Track fitting (TT)
+#  Track searching / finding -> Encontrar los puntos por los que pasa
+#  Track fitting
 
-# TODO: Create different branches:
-#  - (kf_lineal) Kalman Filter Lineal
-#  - (master) Kalman Filter Classes
+# TODO: Plots en función de Z y no del tiempo
+
+# TODO: Chi2 TT

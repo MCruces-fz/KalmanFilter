@@ -10,7 +10,7 @@ Miguel Cruces
 
 """
 # from kalmanFilter import GenerateTracks, diag_matrix
-# from kalmanFilter import plot_rays, plot_vec
+# from kalmanFilter import plot_detector, plot_vec
 from scipy import stats
 from const import *
 
@@ -26,11 +26,11 @@ Seed with 5 tracks (NTRACK = 5) -> 17
 
 def diag_matrix(dim: int, diag: list):
     """
-    Create squared matrix of dimXdim dimension with diag in the diagonal.
+    Create squared k_mat of dimXdim dimension with diag in the diagonal.
 
     :param dim: Quantity of rows/columns.
     :param diag: String of length dim with the diagonal values.
-    :return: Squared matrix of dimXdim dimension with diag in the diagonal.
+    :return: Squared k_mat of dimXdim dimension with diag in the diagonal.
     """
     arr = np.zeros([dim, dim])
     row, col = np.diag_indices(arr.shape[0])
@@ -52,7 +52,7 @@ def gene_tracks(all_tracks_in: bool = True):
     ctmx = np.cos(np.deg2rad(THMAX))  # theta_max cosine
     lenz = abs(VZI[0] - VZI[-1])  # Distance from bottom to top planes
     it = 0  # Number of tracks actually
-    mtgen = np.zeros([NTRACK, NPAR])  # generated tracks matrix
+    mtgen = np.zeros([NTRACK, NPAR])  # generated tracks k_mat
     i = 1
     while i <= NTRACK:
         # Uniform distribution in cos(theta) and phi
@@ -102,12 +102,12 @@ def trag_digitization(nt: int, mtgen):
 
     :param nt: Number of tracks generated accross the detector.
     :param mtgen: Matrix of generated tracks
-    :return: m_dat (cell indices matrix) and m_dpt (cell central
-        positions matrix).
+    :return: m_dat (cell indices k_mat) and m_dpt (cell central
+        positions k_mat).
     """
     v_dat = np.zeros(NPLAN * NDAC)  # Digitalizing tracks vector
     v_dpt = np.zeros(NPLAN * NDAC)  # Vector with impact point
-    m_dat = np.zeros(NPLAN * NDAC)  # Detector data matrix
+    m_dat = np.zeros(NPLAN * NDAC)  # Detector data k_mat
     m_dpt = np.zeros(NPLAN * NDAC)  # Impact point
     nx = 0
     for it in range(nt):
@@ -145,10 +145,10 @@ def trag_digitization(nt: int, mtgen):
 
 def matrix_det(m_dat):
     """
-    Creates a matrix similar to TRAGALDABAS output data
+    Creates a k_mat similar to TRAGALDABAS output data
 
     :param m_dat: Matrix of generated and digitized tracks.
-    :return: Equivalent matrix to m_data, in TRAGALDABAS format.
+    :return: Equivalent k_mat to m_data, in TRAGALDABAS format.
     """
     if np.all(m_dat == 0):  # Check if mdat is all zero
         raise Exception('No tracks available! Matrix mdat is all zero ==> Run the program Again '
@@ -174,11 +174,11 @@ def matrix_det(m_dat):
 
 def set_transport_func(ks: float, dz: int):
     """
-    It sets the transport matrix between both planes separated by dz
+    It sets the transport k_mat between both planes separated by dz
 
     :param ks: sqrt( 1 + XP**2 + YP**2)
     :param dz: distance between planes
-    :return: Transport function (matrix | Numpy array)
+    :return: Transport function (k_mat | Numpy array)
     """
     F = diag_matrix(NPAR, [1] * NPAR)  # Identity 6x6
     F[0, 1] = dz
@@ -193,7 +193,7 @@ def set_jacobi():
     """
     Jacobian || I(NDACxNPAR): Parameters (NPAR dim) --> Measurements (NDAC dim)
 
-    :return: Jacobi matrix H
+    :return: Jacobi k_mat H
     """
     H = np.zeros([NDAC, NPAR])
     rows = range(NDAC)
@@ -282,7 +282,7 @@ class KalmanTRAG:
 
     def main(self):
 
-        C0 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error matrix
+        C0 = diag_matrix(NPAR, [1 / WX, VSLP, 1 / WY, VSLP, 1 / WT, VSLN])  # Error k_mat
         V = diag_matrix(NDAC, [SIGX ** 2, SIGY ** 2, SIGT ** 2])
         dcut = 0.995
         Chi2 = 0
@@ -318,7 +318,7 @@ class KalmanTRAG:
 
                             # Step 3. - PROCESS NOISE
                             self.rn[k, i3] = self.rp[k, i3]
-                            self.Cn[k, i3] = self.Cp[k, i3]  # + Q (random matrix)
+                            self.Cn[k, i3] = self.Cp[k, i3]  # + Q (random k_mat)
 
                             # Step 4. - FILTRATION
                             m = self.m_coord(k, i3)  # Measurement
@@ -336,7 +336,7 @@ class KalmanTRAG:
                             delta_r = np.dot(K, delta_m)
                             self.r[k, i3] = self.rn[k, i3] + delta_r
 
-                            # New Ck matrix
+                            # New Ck k_mat
                             self.C[k, i3] = self.Cn[k, i3] - np.dot(K, np.dot(H, self.Cn[k, i3]))
 
                             # Chi2

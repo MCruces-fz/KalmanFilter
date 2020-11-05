@@ -109,11 +109,11 @@ vdx    = np.zeros(nplan)
 vdy    = np.zeros(nplan)
 vdt    = np.zeros(nplan)
 
-mtrec  = np.zeros([ntrack,npar]) # reconstructed tracks matrix
-mtgen  = np.zeros([ntrack,npar]) # generated tracks matrix
+mtrec  = np.zeros([ntrack,npar]) # reconstructed tracks k_mat
+mtgen  = np.zeros([ntrack,npar]) # generated tracks k_mat
 vdat   = np.zeros(nplan * ndac)   # digitazing tracks vector 
 vdpt   = np.zeros(nplan * ndac)   # vector with impact point
-mdat   = np.zeros(nplan * ndac)   # detector data matrix
+mdat   = np.zeros(nplan * ndac)   # detector data k_mat
 mdpt   = np.zeros(nplan * ndac)   # impact point
 
 
@@ -266,13 +266,13 @@ def fprop(vr, mErr, zi, zf):     # Transport function
     
     vr  = np.dot(mF, vr)
     vr  = np.asarray(vr)
-    # Propagation of the error matrix
+    # Propagation of the error k_mat
     mErr = np.dot(mF, np.dot(mErr, mF.T)) 
            
     return vr, mErr
 
 
-def jacobi(vr, zi):           # Jacobian matrix
+def jacobi(vr, zi):           # Jacobian k_mat
     ndac = 3
     npar = 6
     mH   = np.zeros([ndac,npar])
@@ -319,14 +319,14 @@ def fpar2dat(vr, mErr, mH, zi, zf):    # Projection in the measurement space
 
 def fdat2par(mVr, mVd, mVc, mErr, mH, zi, zf):  # Projection in the parameter space
     
-    mWc     = inv(mVc)   # weight matrix
+    mWc     = inv(mVc)   # weight k_mat
     mKgain  = np.dot(mErr, np.dot(mH.T, mWc))
     mWr     = np.dot(mH.T, np.dot(mWc, mH))
     
     return mKgain, mWr
 
 
-def update(mKgain,vdd,mWr, vr, mErr):    # Update the state vector and error matrix
+def update(mKgain,vdd,mWr, vr, mErr):    # Update the state vector and error k_mat
     
     dvr  = np.dot(mKgain, vdd)
     mdE  = np.dot(mErr, np.dot(mWr, mErr))
@@ -355,7 +355,7 @@ def fitkalman(vzi,vr,mErr,vdat,iplan):
         vrp = vr
         vr, mErr = fprop(vr, mErr, zi, zf)
                     
-        mH = jacobi(vr, zi)  # Jacobian matrix
+        mH = jacobi(vr, zi)  # Jacobian k_mat
                     
         vdr, mVr = fpar2dat(vr, mErr, mH, zi, zf) #  Parameter  -> Measurument
                        
@@ -366,7 +366,7 @@ def fitkalman(vzi,vr,mErr,vdat,iplan):
         vdi[1] = vdat[1] 
         vdi[2] = vdat[2]  
         vdd    = vdi - vdr     # Difference between measurement and expected data
-        mVc    = mVr + mVd     # Joint uncertainties matrix       
+        mVc    = mVr + mVd     # Joint uncertainties k_mat
                     
         mKgain, mWr = fdat2par(mVr,mVd,mVc,mErr,mH, zi, zf) # Meas. -> Proj.
                   
@@ -450,7 +450,7 @@ for i3 in range(ncel3):
     t0   = kt3
     # state vector
     vr   = np.asarray([x0, 0, y0, 0, t0, sc])  # we assume a normal svector
-    # Error matrix for vr
+    # Error k_mat for vr
     mErr  = np.zeros([npar,npar])
     np.fill_diagonal(mErr,[1/wx, vslp, 1/wy, vslp, 1/wt, vsln])
     
