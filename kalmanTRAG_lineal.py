@@ -32,7 +32,7 @@ do_efficiency = False
 if_repr: bool = True
 """ Set if shows the 3D representation of rays on the detector """
 
-if_final_prints: bool = True
+if_final_prints: bool = False
 """ Set if print final data """
 
 if_save_diff: bool = False
@@ -409,13 +409,13 @@ def plot_saetas(vector, fig_id: int or str or None = None,
     z = np.array([z0, z1])
     if prob_s is not None:
         if 1 >= prob_s >= 0.9:
-            frmt_color = "#E74C3C"
+            frmt_color = "#FF0000"
         elif 0.9 > prob_s >= 0.6:
-            frmt_color = "#E67E22"
+            frmt_color = "#FF5000"
         elif 0.6 > prob_s >= 0.3:
-            frmt_color = "#F39C12"
+            frmt_color = "#FFA000"
         elif 0.3 > prob_s >= 0:
-            frmt_color = "#F1C40F"
+            frmt_color = "#FFF000"
         else:
             raise Exception(f"Ojo al dato: Prob = {prob_s}")
     ax.plot(x, y, z, linestyle=frmt_marker, color=frmt_color, label=lbl)
@@ -461,14 +461,14 @@ def plot_hit_ids(k_vec, fig_id: str = None, plt_title: str or None = None,
     ax.set_ylim([0, LENY])
     ax.set_zlim([VZ0[-1], VZ0[0]])
 
-    x = (k_vec[np.arange(0, 12, 3)] + 0) * WCX
-    y = (k_vec[np.arange(1, 12, 3)] + 0) * WCY
+    x = k_vec[np.arange(0, 12, 3)] * WCX
+    y = k_vec[np.arange(1, 12, 3)] * WCY
 
     if cells:
         for ip in range(NPLAN):
             p = Rectangle(xy=(x[ip] - 0.5 * WCX, y[ip] - 0.5 * WCY),
                           width=WCX, height=WCY, alpha=0.5,
-                          facecolor='#FA8072', edgecolor='#C8665B', fill=True)
+                          facecolor='#AF7AC5', edgecolor='#9B59B6', fill=True)
             ax.add_patch(p)
             art3d.pathpatch_2d_to_3d(p, z=VZ0[ip], zdir="z")
 
@@ -511,19 +511,19 @@ def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays',
     if k_mat is not None:
         for trk in range(k_mat.shape[0]):
             plot_hit_ids(k_mat[trk], fig_id=fig_id,
-                         lbl=f'Digitized {trk}', frmt_color='#58D68D', frmt_marker=':', cells=cells)
+                         lbl=f'Digi. {trk + 1}', frmt_color='#196F3D', frmt_marker=':', cells=cells)
 
     # Plot Generated Tracks (SAETAs)
     if mtrack is not None:
         for trk in range(mtrack.shape[0]):
             plot_saetas(mtrack[trk], fig_id=fig_id,
-                        lbl=f'Generated {trk}', frmt_color='#3498DB', frmt_marker='--')
+                        lbl=f'Gene. {trk + 1}', frmt_color='#3498DB', frmt_marker='--')
 
     # Plot Reconstructed Tracks (SAETAs)
     if mrec is not None:
         for rec in range(mrec.shape[0]):
             plot_saetas(mrec[rec], fig_id=fig_id,
-                        lbl=f'Reconstructed {rec}', frmt_color='b', frmt_marker='-',
+                        lbl=f'Reco. {rec + 1}', frmt_color='b', frmt_marker='-',
                         prob_s=prob_ary[rec])
 
     plt.show()
@@ -863,12 +863,13 @@ if single_run:
         prob_tt = mtrec[:, -1]
         prob_kf = m_stat[:, -1]
         k_mat_gene = mdat
-        plot_detector(plt_title=f"Track Finding (KF) || cut = {kfcut}", cells=True,
-                      k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_kf, prob_ary=prob_kf)
-        plot_detector(plt_title=f"Track Fitting (TT) || cut = {ttcut}", cells=True,
+        # plot_detector(fig_id=f"cut = {kfcut}", plt_title=f"Track Finding (KF)", cells=True,
+        #               k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_kf, prob_ary=prob_kf)
+        plot_detector(fig_id=f"cut = {ttcut}", plt_title=f"Track Fitting (TT)", cells=True,
                       k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_tt, prob_ary=prob_tt)
         k_mat_rec = mtrec[:, 1:13]
-        plot_detector(k_mat_rec, plt_title="Reconstructed by Indices", cells=True)
+        # plot_detector(fig_id='Id-Rec', plt_title="Reconstructed by Indices", cells=True,
+        #               k_mat=k_mat_rec)
 
     if if_final_prints:
         print("# ================ P R I N T S ================ #")
