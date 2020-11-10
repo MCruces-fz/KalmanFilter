@@ -366,7 +366,7 @@ def set_mKgain(H, Cn, V):
 
 def plot_saetas(vector, fig_id: int or str or None = None,
                 plt_title=None, lbl: str = 'Vector', grids: bool = False,
-                frmt: str = "--", fade=None):
+                frmt_color: str = "green", frmt_marker: str = "--", prob_s=None):
     """
     Config Function for plot any SAETA with 6 parameters
 
@@ -375,8 +375,9 @@ def plot_saetas(vector, fig_id: int or str or None = None,
     :param plt_title:  Title for the plot
     :param lbl: Label for the SAETA
     :param grids: Set cell grids (higher CPU requirements, not recommendable)
-    :param frmt: Format for the SAETA representation
-    :param fade: value with alpha to fade SAETA.
+    :param frmt_color: Format color for the SAETA representation
+    :param frmt_marker: Format marker for the SAETA representation
+    :param prob_s: value with alpha to fade SAETA.
     """
     # Plot configuration
     if fig_id is None:
@@ -406,7 +407,18 @@ def plot_saetas(vector, fig_id: int or str or None = None,
     x = np.array([x0, x0 + x1])
     y = np.array([y0, y0 + y1])
     z = np.array([z0, z1])
-    ax.plot(x, y, z, f"{frmt}", label=lbl, alpha=fade)
+    if prob_s is not None:
+        if 1 >= prob_s >= 0.9:
+            frmt_color = "#E74C3C"
+        elif 0.9 > prob_s >= 0.6:
+            frmt_color = "#E67E22"
+        elif 0.6 > prob_s >= 0.3:
+            frmt_color = "#F39C12"
+        elif 0.3 > prob_s >= 0:
+            frmt_color = "#F1C40F"
+        else:
+            raise Exception(f"Ojo al dato: Prob = {prob_s}")
+    ax.plot(x, y, z, linestyle=frmt_marker, color=frmt_color, label=lbl)
     ax.legend(loc='best')
 
     # Plot cell grid
@@ -422,7 +434,7 @@ def plot_saetas(vector, fig_id: int or str or None = None,
 
 def plot_hit_ids(k_vec, fig_id: str = None, plt_title: str or None = None,
                  digi_trk: bool = True, cells: bool = True,
-                 lbl: str = 'Digitized', frmt: str = 'g:'):
+                 lbl: str = 'Digitized', frmt_color: str = "green", frmt_marker: str = ":"):
     """
     Config Function for plot any set of hits
 
@@ -432,7 +444,8 @@ def plot_hit_ids(k_vec, fig_id: str = None, plt_title: str or None = None,
     :param digi_trk: Set if reconstructed digitized track is shown
     :param cells: Set if hit cell squares are shown
     :param lbl: Label for the SAETA
-    :param frmt: Format for the SAETA representation
+    :param frmt_color: Format of color for the SAETA representation
+    :param frmt_marker: Format of marker for the SAETA representation
     """
     # Set Plot - Initial Config
     if fig_id is None:
@@ -460,7 +473,7 @@ def plot_hit_ids(k_vec, fig_id: str = None, plt_title: str or None = None,
             art3d.pathpatch_2d_to_3d(p, z=VZ0[ip], zdir="z")
 
     if digi_trk:
-        ax.plot(x, y, VZ0, frmt, label=lbl)
+        ax.plot(x, y, VZ0, linestyle=frmt_marker, color=frmt_color, label=lbl)
     ax.plot(x, y, VZ0, 'k.', alpha=0.9)
 
     ax.legend(loc='best')
@@ -469,7 +482,7 @@ def plot_hit_ids(k_vec, fig_id: str = None, plt_title: str or None = None,
 
 
 def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays',
-                  cells: bool = False, mtrack=None, mrec=None, fade_by_prob=None):
+                  cells: bool = False, mtrack=None, mrec=None, prob_ary=None):
     """
     Config function for plot sets of hits and SAETAs
 
@@ -479,7 +492,7 @@ def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays',
     :param cells: Set if hit cell squares are shown
     :param mtrack: Array with all SAETAs generated
     :param mrec: Array with all SAETAs reconstructed
-    :param fade_by_prob: Array with probabilities sorted by tracks order.
+    :param prob_ary: Array with probabilities sorted by tracks order.
     """
     # Set Plot - Initial Config
     if fig_id is None:
@@ -498,19 +511,20 @@ def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays',
     if k_mat is not None:
         for trk in range(k_mat.shape[0]):
             plot_hit_ids(k_mat[trk], fig_id=fig_id,
-                         lbl=f'Digitized {trk}', frmt='g:', cells=cells)
+                         lbl=f'Digitized {trk}', frmt_color='#58D68D', frmt_marker=':', cells=cells)
 
     # Plot Generated Tracks (SAETAs)
     if mtrack is not None:
         for trk in range(mtrack.shape[0]):
             plot_saetas(mtrack[trk], fig_id=fig_id,
-                        lbl=f'Generated {trk}', frmt='r--')
+                        lbl=f'Generated {trk}', frmt_color='#3498DB', frmt_marker='--')
 
     # Plot Reconstructed Tracks (SAETAs)
     if mrec is not None:
         for rec in range(mrec.shape[0]):
             plot_saetas(mrec[rec], fig_id=fig_id,
-                        lbl=f'Reconstructed {rec}', frmt='b-', fade=fade_by_prob[rec])
+                        lbl=f'Reconstructed {rec}', frmt_color='b', frmt_marker='-',
+                        prob_s=prob_ary[rec])
 
     plt.show()
 
@@ -850,9 +864,9 @@ if single_run:
         prob_kf = m_stat[:, -1]
         k_mat_gene = mdat
         plot_detector(plt_title=f"Track Finding (KF) || cut = {kfcut}", cells=True,
-                      k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_kf, fade_by_prob=prob_kf)
+                      k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_kf, prob_ary=prob_kf)
         plot_detector(plt_title=f"Track Fitting (TT) || cut = {ttcut}", cells=True,
-                      k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_tt, fade_by_prob=prob_tt)
+                      k_mat=k_mat_gene, mtrack=mtrk, mrec=saeta_tt, prob_ary=prob_tt)
         k_mat_rec = mtrec[:, 1:13]
         plot_detector(k_mat_rec, plt_title="Reconstructed by Indices", cells=True)
 
