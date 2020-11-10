@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# My GitIgnores
+.idea
+all_bins_*
+saetas_file.csv
+
 # Distribution / packaging
 .Python
 build/
