@@ -507,17 +507,17 @@ def plot_detector(k_mat=None, fig_id=None, plt_title='Matrix Rays',
     ax.set_ylim([0, LENY])
     ax.set_zlim([VZ0[-1], VZ0[0]])
 
-    # Plot Digitized Tracks (Hits By Indices)
-    if k_mat is not None:
-        for trk in range(k_mat.shape[0]):
-            plot_hit_ids(k_mat[trk], fig_id=fig_id,
-                         lbl=f'Digi. {trk + 1}', frmt_color='#196F3D', frmt_marker=':', cells=cells)
-
     # Plot Generated Tracks (SAETAs)
     if mtrack is not None:
         for trk in range(mtrack.shape[0]):
             plot_saetas(mtrack[trk], fig_id=fig_id,
                         lbl=f'Gene. {trk + 1}', frmt_color='#3498DB', frmt_marker='--')
+
+    # Plot Digitized Tracks (Hits By Indices)
+    if k_mat is not None:
+        for trk in range(k_mat.shape[0]):
+            plot_hit_ids(k_mat[trk], fig_id=fig_id,
+                         lbl=f'Digi. {trk + 1}', frmt_color='#196F3D', frmt_marker=':', cells=cells)
 
     # Plot Reconstructed Tracks (SAETAs)
     if mrec is not None:
@@ -859,7 +859,6 @@ if single_run:
 # ========================================================================== #
 
     if if_repr:
-        # FIXME: Plot squared cells doesn't work
         prob_tt = mtrec[:, -1]
         prob_kf = m_stat[:, -1]
         k_mat_gene = mdat
@@ -945,18 +944,7 @@ elif do_efficiency:
 else:
     print("Ojo cuidao, atento a los Settings (if_single_run = do_efficiency = False)")
 
-# TODO: Estudio de eficiencia:
-#  NTRK = 1 -> 1000 lanzamientos -> distintos dcut -> Número de reconstruídas
-#  NTRK = 2 -> 1000 lanzamientos -> distintos dcut -> Número de reconstruídas
-#  ...
-#  ...
-#  Representar número de trazas reconstruídas sobre generadas, frente a dcut
-
 # TODO: Lluvias a distintas alturas (Preguntar a Hans)
-
-# TODO:
-#  Track searching / finding -> Encontrar los puntos por los que pasa (KF)
-#  Track fitting (TT)
 
 # TODO: Create different branches:
 #  - (kf_lineal) Kalman Filter Lineal
