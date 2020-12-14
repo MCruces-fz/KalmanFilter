@@ -38,7 +38,7 @@ def tragaldabas_output(m_dat):
         for it in range(ntrk):  # Number of tracks
             idatf = idat + NDAC
             kx, ky, t = m_dat[it, idat:idatf]  # kx, ky (index cells), t (time in ps)
-            z = VZI[::-1][ip]  # Height in mm
+            z = VZ1[::-1][ip]  # Height in mm
             x = kx * WCX - WCX / 2  # X [mm]
             y = ky * WCY - WCY / 2  # Y [mm]
             row = np.hstack((ip, kx, ky, x, y, z, t))
